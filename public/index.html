@@ -1,39 +1,56 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Full Screen Botpress Chat</title>
   <style>
-    /* Reset default margin and padding */
+    /* Reset default margins and ensure full viewport coverage */
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
     }
-    
-    /* Ensure the html and body take up full viewport */
+
     html, body {
       width: 100%;
       height: 100%;
       overflow: hidden;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
-    
-    /* Container for the webchat */
+
+    body {
+      /* Explicitly set margin: 0; on body */
+      margin: 0;
+    }
+
     #webchat-container {
       position: relative;
       width: 100vw;
-      height: 100vh;
+      height: 100vh !important;
+      overflow: hidden;
     }
+
+    /* Override Botpress sizing (COMMENT IT AGAIN) */
     
-    /* Hide the chat button since we want the chat to be always open */
+    html body #webchat-root.bpheightfull {
+      width: 100vw !important;
+      height: 100vh !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      }
+
+    
+
+    /* Hide the default launcher button since we want it always open */
     .bpFab {
       display: none !important;
     }
-    
-    /* Make the webchat take up the full container */
-    .bpWebchat,
-    #bp-web-widget {
+
+    /* Ensure the webchat takes up the full container */
+    .bpWebchat {
       position: absolute !important;
       top: 0 !important;
       left: 0 !important;
@@ -41,68 +58,82 @@
       bottom: 0 !important;
       width: 100% !important;
       height: 100% !important;
-      border: none !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      max-width: 100% !important;
-      max-height: 100% !important;
     }
+
+    /* Force sub-elements to also stretch to 100% (COMMENT IT AGAIN) */
     
-    /* Additional styles to ensure full screen display */
     .bpw-layout,
-    .bp-widget-web,
-    .bp-widget-web iframe {
-      width: 100% !important;
-      height: 100% !important;
-      max-height: 100vh !important;
-      margin: 0 !important;
-      border-radius: 0 !important;
-      border: none !important;
-      background: transparent !important;
-    }
-    
-    .bpw-chat-container {
-      height: 100% !important;
-    }
-    
+    .bpw-chat-container,
     .bpw-header-container,
     .bpw-header {
-      border-radius: 0 !important;
+      height: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: none !important;
     }
+    
   </style>
 </head>
 <body>
-  <div id="webchat-container">
+  <div id="webchat-container" style="position: relative; width: 100vw; height: 100vh;">
     <script src="https://cdn.botpress.cloud/webchat/v2.2/inject.js"></script>
     <script>
-      // Open the chat automatically when it's ready
-      window.botpress.on("webchat:ready", () => {
-        window.botpress.open();
-      });
+      console.log("After inject.js load, window.botpress:", window.botpress);
 
-      // Initialize Botpress with your bot configuration
-      // Replace YOUR_BOT_ID and YOUR_CLIENT_ID with your actual values
-      window.botpress.init({
-        "botId": "e28b7720-ebbb-4a11-89bb-47f55cd05c45",
-        "configuration": {
-          "composerPlaceholder": "Chat with eBay Lister",
-          "botName": "eBay Lister",
-          "botDescription": "I will list your eBay items from a few messages",
-          "website": {},
-          "email": {},
-          "phone": {},
-          "termsOfService": {},
-          "privacyPolicy": {},
-          "color": "#ffffff",
-          "variant": "soft",
-          "themeMode": "dark",
-          "fontFamily": "rubik",
-          "radius": 0.5,
-          "showPoweredBy": true,
-          "additionalStylesheetUrl": "https://files.bpcontent.cloud/2025/03/02/13/20250302133842-6MYMQOH2.css",
-          "allowFileUpload": true
-        },
-        "clientId": "c381f42d-816e-4ed2-8ddd-c1bfd943ac6b"
+      window.addEventListener("load", () => {
+        window.botpress.on("webchat:ready", (error) => {
+          if (error && Object.keys(error).length > 0) {
+            console.error("Error during webchat ready:", JSON.stringify(error, null, 2));
+          } else {
+            console.log("Webchat ready event fired, opening chat after delay.");
+            setTimeout(() => {
+              window.botpress.open();
+            }, 500); // delay of 1 second
+          }
+        });
+
+        console.log("Initializing Botpress with configuration...");
+
+        // Initialize Botpress with your bot configuration
+        window.botpress.init({
+          "botId": "e28b7720-ebbb-4a11-89bb-47f55cd05c45",
+          "configuration": {
+            "composerPlaceholder": "Chat Bot",
+            "botName": "Bot",
+            "botAvatar": "https://yourdomain.com/path/to/avatar.png",
+            "botDescription": "Let Me Help",
+            "website": {
+              "title": "Website",
+              "link": "https://yourdomain.com"
+            },
+            "email": {
+              "title": "Email",
+              "link": "mailto:contact@yourdomain.com"
+            },
+            "phone": {
+              "title": "Phone",
+              "link": "tel:+1234567890"
+            },
+            "termsOfService": {
+              "title": "Terms",
+              "link": "https://yourdomain.com/terms"
+            },
+            "privacyPolicy": {
+              "title": "Privacy Policy",
+              "link": "https://yourdomain.com/privacy"
+            },
+            "color": "#2563eb",
+            "variant": "solid",
+            "themeMode": "light",
+            "fontFamily": "rubik",
+            "radius": 2,
+            "showPoweredBy": true,
+            "additionalStylesheetUrl": "https://files.bpcontent.cloud/2025/03/02/13/20250302133842-6MYMQOH2.css",
+            "allowFileUpload": true
+          },
+          "clientId": "0a4ade33-563b-4f99-b89c-44328568df81"
+        });
+        console.log("Botpress initialization completed.");
       });
     </script>
   </div>
