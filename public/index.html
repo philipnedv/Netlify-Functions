@@ -1,141 +1,173 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Full Screen Botpress Chat</title>
-  <style>
-    /* Reset default margins and ensure full viewport coverage */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    html, body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      /* Explicitly set margin: 0; on body */
-      margin: 0;
-    }
-
-    #webchat-container {
-      position: relative;
-      width: 100vw;
-      height: 100vh !important;
-      overflow: hidden;
-    }
-
-    /* Override Botpress sizing (COMMENT IT AGAIN) */
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lazy Lister</title>
     
-    html body #webchat-root.bpheightfull {
-      width: 100vw !important;
-      height: 100vh !important;
-      margin: 0 !important;
-      padding: 0 !important;
+    <!-- Include Clerk SDK using the recommended <script> tag method -->
+    <script
+      async
+      crossorigin="anonymous"
+      data-clerk-publishable-key="pk_test_c3F1YXJlLWhvcnNlLTYxLmNsZXJrLmFjY291bnRzLmRldiQ"
+      src="https://square-horse-61.clerk.accounts.dev/npm/@clerk/clerk-js@5/dist/clerk.browser.js"
+      type="text/javascript"
+    ></script>
+
+    <style>
+      /* Reset default margins and ensure full viewport coverage */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
       }
 
-    
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
-    /* Hide the default launcher button since we want it always open */
-    .bpFab {
-      display: none !important;
-    }
+      body {
+        margin: 0;
+      }
 
-    /* Ensure the webchat takes up the full container */
-    .bpWebchat {
-      position: absolute !important;
-      top: 0 !important;
-      left: 0 !important;
-      right: 0 !important;
-      bottom: 0 !important;
-      width: 100% !important;
-      height: 100% !important;
-    }
+      #webchat-container {
+        position: relative;
+        width: 100vw;
+        height: 100vh !important;
+        overflow: hidden;
+      }
 
-    /* Force sub-elements to also stretch to 100% (COMMENT IT AGAIN) */
-    
-    .bpw-layout,
-    .bpw-chat-container,
-    .bpw-header-container,
-    .bpw-header {
-      height: 100% !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      border: none !important;
-    }
-    
-  </style>
-</head>
-<body>
-  <div id="webchat-container" style="position: relative; width: 100vw; height: 100vh;">
-    <script src="https://cdn.botpress.cloud/webchat/v2.2/inject.js"></script>
-    <script>
-      console.log("After inject.js load, window.botpress:", window.botpress);
+      /* Override Botpress sizing */
+      html body #webchat-root.bpheightfull {
+        width: 100vw !important;
+        height: 100vh !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
 
-      window.addEventListener("load", () => {
-        window.botpress.on("webchat:ready", (error) => {
-          if (error && Object.keys(error).length > 0) {
-            console.error("Error during webchat ready:", JSON.stringify(error, null, 2));
-          } else {
-            console.log("Webchat ready event fired, opening chat after delay.");
-            setTimeout(() => {
-              window.botpress.open();
-            }, 500); // delay of 1 second
-          }
+      /* Hide the default launcher button since we want it always open */
+      .bpFab {
+        display: none !important;
+      }
+
+      /* Ensure the webchat takes up the full container */
+      .bpWebchat {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+      }
+
+      /* Force sub-elements to also stretch to 100% */
+      .bpw-layout,
+      .bpw-chat-container,
+      .bpw-header-container,
+      .bpw-header {
+        height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="webchat-container" style="position: relative; width: 100vw; height: 100vh;">
+      <script src="https://cdn.botpress.cloud/webchat/v2.2/inject.js"></script>
+      <script>
+        console.log("After inject.js load, window.botpress:", window.botpress);
+
+        window.addEventListener("load", async function () {
+          // Wait for ClerkJS to load using the SDK's built-in data attribute
+          await Clerk.load();
+          console.log("ClerkJS is loaded");
+
+          window.botpress.on("webchat:ready", function (error) {
+            if (error && Object.keys(error).length > 0) {
+              console.error("Error during webchat ready:", JSON.stringify(error, null, 2));
+            } else {
+              console.log("Webchat ready event fired, checking Clerk authentication...");
+              const user = Clerk.user;
+              if (user && user.emailAddresses && user.emailAddresses.length > 0) {
+                console.log("User authenticated:", user.emailAddresses[0].emailAddress);
+                setTimeout(function () {
+                  window.botpress.open();
+                }, 500); // 0.5 second delay
+              } else {
+                console.log("User not authenticated. Prompting sign-in...");
+                Clerk.openSignIn();
+              }
+            }
+          });
+
+          console.log("Initializing Botpress with configuration...");
+          window.botpress.init({
+            "botId": "e28b7720-ebbb-4a11-89bb-47f55cd05c45",
+            "configuration": {
+              "composerPlaceholder": "Ready to list?",
+              "botName": "Lazy Lister",
+              "botAvatar": "https://qph.cf2.quoracdn.net/main-qimg-04129ac4f60a44e0b74018940ac3e5bc",
+              "botDescription": "Effortless eBay listings",
+              "website": {
+                "title": "Website",
+                "link": "https://yourdomain.com"
+              },
+              "email": {
+                "title": "Email",
+                "link": "mailto:contact@yourdomain.com"
+              },
+              "phone": {
+                "title": "Phone",
+                "link": "tel:+1234567890"
+              },
+              "termsOfService": {
+                "title": "Terms",
+                "link": "https://yourdomain.com/terms"
+              },
+              "privacyPolicy": {
+                "title": "Privacy Policy",
+                "link": "https://yourdomain.com/privacy"
+              },
+              "color": "#4169E1",
+              "variant": "soft",
+              "themeMode": "dark",
+              "fontFamily": "rubik",
+              "radius": 0.5,
+              "showPoweredBy": true,
+              "additionalStylesheetUrl": "https://files.bpcontent.cloud/2025/03/02/13/20250302133842-6MYMQOH2.css",
+              "allowFileUpload": true
+            },
+            "clientId": "0a4ade33-563b-4f99-b89c-44328568df81"
+          });
+          console.log("Botpress initialization completed.");
+
+          // Register the custom event listener here
+          window.botpress.on('customEvent', (event) => {
+            console.log(event);
+            let count = Clerk.user.unsafeMetadata.count || 0;
+            count++;
+            Clerk.user.update({
+              unsafeMetadata: {
+                count: count
+              }
+            })
+            .then((updatedUser) => {
+              console.log('User metadata updated:', updatedUser.unsafeMetadata.count);              
+            })
+            .catch((error) => {
+              console.error('Error updating user metadata:', error);
+            })
+          });
         });
-
-        console.log("Initializing Botpress with configuration...");
-
-        // Initialize Botpress with your bot configuration
-        window.botpress.init({
-          "botId": "e28b7720-ebbb-4a11-89bb-47f55cd05c45",
-          "configuration": {
-            "composerPlaceholder": "Chat Bot",
-            "botName": "Bot",
-            "botAvatar": "https://yourdomain.com/path/to/avatar.png",
-            "botDescription": "Let Me Help",
-            "website": {
-              "title": "Website",
-              "link": "https://yourdomain.com"
-            },
-            "email": {
-              "title": "Email",
-              "link": "mailto:contact@yourdomain.com"
-            },
-            "phone": {
-              "title": "Phone",
-              "link": "tel:+1234567890"
-            },
-            "termsOfService": {
-              "title": "Terms",
-              "link": "https://yourdomain.com/terms"
-            },
-            "privacyPolicy": {
-              "title": "Privacy Policy",
-              "link": "https://yourdomain.com/privacy"
-            },
-            "color": "#2563eb",
-            "variant": "solid",
-            "themeMode": "light",
-            "fontFamily": "rubik",
-            "radius": 2,
-            "showPoweredBy": true,
-            "additionalStylesheetUrl": "https://files.bpcontent.cloud/2025/03/02/13/20250302133842-6MYMQOH2.css",
-            "allowFileUpload": true
-          },
-          "clientId": "0a4ade33-563b-4f99-b89c-44328568df81"
-        });
-        console.log("Botpress initialization completed.");
-      });
-    </script>
-  </div>
-</body>
+      </script>
+    </div>
+  </body>
 </html>
