@@ -13,6 +13,8 @@
       src="https://square-horse-61.clerk.accounts.dev/npm/@clerk/clerk-js@5/dist/clerk.browser.js"
       type="text/javascript"
     ></script>
+    <!-- Include Stripe.js -->
+    <script src="https://js.stripe.com/v3/"></script>
 
     <style>
       /* Reset default margins and ensure full viewport coverage */
@@ -21,7 +23,6 @@
         padding: 0;
         box-sizing: border-box;
       }
-
       html,
       body {
         width: 100%;
@@ -29,20 +30,16 @@
         overflow: hidden;
         margin: 0;
         padding: 0;
-        box-sizing: border-box;
       }
-
       body {
         margin: 0;
       }
-
       #webchat-container {
         position: relative;
         width: 100vw;
         height: 100vh !important;
         overflow: hidden;
       }
-
       /* Override Botpress sizing */
       html body #webchat-root.bpheightfull {
         width: 100vw !important;
@@ -50,12 +47,10 @@
         margin: 0 !important;
         padding: 0 !important;
       }
-
       /* Hide the default launcher button since we want it always open */
       .bpFab {
         display: none !important;
       }
-
       /* Ensure the webchat takes up the full container */
       .bpWebchat {
         position: absolute !important;
@@ -66,7 +61,6 @@
         width: 100% !important;
         height: 100% !important;
       }
-
       /* Force sub-elements to also stretch to 100% */
       .bpw-layout,
       .bpw-chat-container,
@@ -77,28 +71,75 @@
         padding: 0 !important;
         border: none !important;
       }
+      
+      /* Loading spinner styles */
+      .loading-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: rgba(0, 0, 0, 0.7);
+        z-index: 10000;
+      }
+      
+      .spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid #f3f3f3;
+        border-top: 5px solid #4169E1;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      .hidden {
+        display: none;
+      }
     </style>
   </head>
   <body>
+    <!-- Add loading spinner -->
+    <div id="loading-spinner" class="loading-container">
+      <div class="spinner"></div>
+    </div>
+    
     <div id="webchat-container" style="position: relative; width: 100vw; height: 100vh;">
       <script src="https://cdn.botpress.cloud/webchat/v2.2/inject.js"></script>
       <script>
         console.log("After inject.js load, window.botpress:", window.botpress);
 
         window.addEventListener("load", async function () {
-          // Wait for ClerkJS to load using the SDK's built-in data attribute
+          // Show loading spinner while Clerk loads
+          const loadingSpinner = document.getElementById('loading-spinner');
+          
+          // Wait for ClerkJS to load so that the user data is available
           await Clerk.load();
           console.log("ClerkJS is loaded");
+          
+          // Hide loading spinner after Clerk loads
+          loadingSpinner.classList.add('hidden');
 
+          // When the webchat is ready, check if the user is authenticated
           window.botpress.on("webchat:ready", function (error) {
             if (error && Object.keys(error).length > 0) {
               console.error("Error during webchat ready:", JSON.stringify(error, null, 2));
+              // Hide loading spinner in case of error
+              document.getElementById('loading-spinner').classList.add('hidden');
             } else {
               console.log("Webchat ready event fired, checking Clerk authentication...");
               const user = Clerk.user;
               if (user && user.emailAddresses && user.emailAddresses.length > 0) {
                 console.log("User authenticated:", user.emailAddresses[0].emailAddress);
                 setTimeout(function () {
+                  // Calling botpress.open() here will trigger our overridden function below
                   window.botpress.open();
                 }, 500); // 0.5 second delay
               } else {
@@ -149,7 +190,114 @@
           });
           console.log("Botpress initialization completed.");
 
-          // Register the custom event listener here
+          // Override the botpress open function to enforce our access logic.
+          const originalBotpressOpen = window.botpress.open;
+          window.botpress.open = function () {
+            // Retrieve the public metadata from Clerk.
+            const metadata = Clerk.user?.publicMetadata || {};
+            const count = metadata.count ? Number(metadata.count) : 0;
+            const paid = metadata.paid === true;
+            
+            // If count is over 5 and user isn't marked as paid, initiate checkout instead of opening the bot.
+            if (count > 5 && !paid) {
+              console.log("Usage limit exceeded. Initiating checkout flow...");
+              window.botpress.close();
+              // Show loading spinner during checkout process
+              document.getElementById('loading-spinner').classList.remove('hidden');
+              
+              // Get user email from Clerk
+              const userEmail = Clerk.user.emailAddresses && 
+                               Clerk.user.emailAddresses.length > 0 ? 
+                               Clerk.user.emailAddresses[0].emailAddress : null;
+              
+              // Generate a session-specific idempotency key that will remain consistent during retries
+              const sessionId = `${Clerk.user.id}_${Math.floor(Date.now() / 60000)}`; // Changes every minute
+              
+              fetch('/.netlify/functions/create-checkout-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                  clerkUserId: Clerk.user.id,
+                  userEmail: userEmail,
+                  sessionId: sessionId // Use consistent ID for retries within a short time window
+                })
+              })
+                .then(response => {
+                  if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                  }
+                  return response.json();
+                })
+                .then(data => {
+                  console.log("Checkout session created:", data);
+                  // Use environment variable for Stripe key
+                  const stripeKey = 'pk_test_51QxZsOH5gbEV3WXhmvSAIpA6mw9sOgdz0B0WdT7ylBX7mr3t7QLD0teqeEqsrwkV2QUDfpouEVafD00zl2mNfV0G00Jyb8bBzD'; // Replace with your actual key in production
+                  const stripe = Stripe(stripeKey);
+                  return stripe.redirectToCheckout({ sessionId: data.id });
+                })
+                .then(result => {
+                  if (result.error) {
+                    console.error('Stripe redirect error:', result.error);
+                    throw new Error(result.error.message);
+                  }
+                })
+                .catch(error => {
+                  console.error('Error initiating checkout:', error);
+                  // Hide loading spinner in case of error
+                  document.getElementById('loading-spinner').classList.add('hidden');
+                  // Show user-friendly error message
+                  alert('Unable to process your payment request. Please try again later.');
+                });
+              return; // Prevent normal bot open
+            }
+            // Otherwise, call the original open function.
+            return originalBotpressOpen();
+          };
+
+          // On page load, check the user's metadata and open/close the bot accordingly.
+          if (Clerk.user) {
+            const metadata = Clerk.user.publicMetadata || {};
+            const count = metadata.count ? Number(metadata.count) : 0;
+            const paid = metadata.paid === true;
+            if (count <= 5) {
+              console.log("Count is 5 or less (or not set), opening bot.");
+              window.botpress.open();
+            } else {
+              if (paid) {
+                console.log("Count is above 5 and paid is true, opening bot.");
+                window.botpress.open();
+              } else {
+                console.log("Count is above 5 and paid is not set, closing bot.");
+                window.botpress.close();
+              }
+            }
+          }
+
+          // Listen for updates to user data (if metadata changes, update bot state)
+          window.Clerk.addListener(({ user }) => {
+            try {
+              if (!user) return;
+              
+              const metadata = user.publicMetadata || {};
+              const count = metadata.count ? Number(metadata.count) : 0;
+              const paid = metadata.paid === true;
+              console.log("User updated:", { count, paid });
+              
+              if (count <= 5) {
+                window.botpress.open();
+              } else {
+                if (paid) {
+                  window.botpress.open();
+                } else {
+                  window.botpress.close();
+                }
+              }
+            } catch (error) {
+              console.error("Error handling user update:", error);
+            }
+          });
+
+          // Register the custom event listener for updating usage count in unsafe metadata.
           window.botpress.on('customEvent', (event) => {
             console.log(event);
             let count = Clerk.user.unsafeMetadata.count || 0;
@@ -160,11 +308,11 @@
               }
             })
             .then((updatedUser) => {
-              console.log('User metadata updated:', updatedUser.unsafeMetadata.count);              
+              console.log('User metadata updated:', updatedUser.unsafeMetadata.count);
             })
             .catch((error) => {
               console.error('Error updating user metadata:', error);
-            })
+            });
           });
         });
       </script>

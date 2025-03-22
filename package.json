@@ -1,0 +1,22 @@
+{
+  "name": "netlify-functions",
+  "version": "1.0.0",
+  "description": "This repository contains serverless functions for deployment on Netlify.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "netlify dev"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "netlify-cli": "^19.0.2"
+  },
+  "dependencies": {
+    "axios": "^1.8.4",
+    "axios-retry": "^4.5.0",
+    "dotenv": "^16.4.7",
+    "stripe": "^17.7.0"
+  }
+}
