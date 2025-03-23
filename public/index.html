@@ -193,10 +193,13 @@
           // Override the botpress open function to enforce our access logic.
           const originalBotpressOpen = window.botpress.open;
           window.botpress.open = function () {
-            // Retrieve the public metadata from Clerk.
-            const metadata = Clerk.user?.publicMetadata || {};
-            const count = metadata.count ? Number(metadata.count) : 0;
-            const paid = metadata.paid === true;
+            // Retrieve the metadata from Clerk - check both public and unsafe metadata
+            const publicMetadata = Clerk.user?.publicMetadata || {};
+            const unsafeMetadata = Clerk.user?.unsafeMetadata || {};
+            const count = unsafeMetadata.count ? Number(unsafeMetadata.count) : 0;
+            const paid = publicMetadata.paid === true;
+            
+            console.log("Checking access - count:", count, "paid:", paid);
             
             // If count is over 5 and user isn't marked as paid, initiate checkout instead of opening the bot.
             if (count > 5 && !paid) {
@@ -256,9 +259,13 @@
 
           // On page load, check the user's metadata and open/close the bot accordingly.
           if (Clerk.user) {
-            const metadata = Clerk.user.publicMetadata || {};
-            const count = metadata.count ? Number(metadata.count) : 0;
-            const paid = metadata.paid === true;
+            const publicMetadata = Clerk.user.publicMetadata || {};
+            const unsafeMetadata = Clerk.user.unsafeMetadata || {};
+            const count = unsafeMetadata.count ? Number(unsafeMetadata.count) : 0;
+            const paid = publicMetadata.paid === true;
+            
+            console.log("Initial check - count:", count, "paid:", paid);
+            
             if (count <= 5) {
               console.log("Count is 5 or less (or not set), opening bot.");
               window.botpress.open();
@@ -278,10 +285,12 @@
             try {
               if (!user) return;
               
-              const metadata = user.publicMetadata || {};
-              const count = metadata.count ? Number(metadata.count) : 0;
-              const paid = metadata.paid === true;
-              console.log("User updated:", { count, paid });
+              const publicMetadata = user.publicMetadata || {};
+              const unsafeMetadata = user.unsafeMetadata || {};
+              const count = unsafeMetadata.count ? Number(unsafeMetadata.count) : 0;
+              const paid = publicMetadata.paid === true;
+              
+              console.log("User updated - count:", count, "paid:", paid);
               
               if (count <= 5) {
                 window.botpress.open();
