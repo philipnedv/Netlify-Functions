@@ -6,7 +6,8 @@ require('dotenv').config();
 // Import required libraries
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const axios = require('axios');
-const axiosRetry = require('axios-retry'); // You'll need to install this package
+const axiosRetry = require('axios-retry').default || require('axios-retry');
+console.log('axiosRetry:', axiosRetry);
 
 // Configure axios with retry logic
 axiosRetry(axios, { 
