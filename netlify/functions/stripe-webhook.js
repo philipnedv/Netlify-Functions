@@ -80,6 +80,43 @@ const updateClerkUser = async (clerkUserId, updateData) => {
   }
 };
 
+/**
+ * getClerkUser - Function to retrieve current Clerk user metadata.
+ */
+const getClerkUser = async (clerkUserId) => {
+  try {
+    const response = await axios.get(
+      `https://api.clerk.com/v1/users/${clerkUserId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.CLERK_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching Clerk user:', error);
+    throw error;
+  }
+};
+
+/**
+ * updateClerkUserMerged - Merges new updateData with existing metadata to prevent overwriting fields.
+ */
+const updateClerkUserMerged = async (clerkUserId, updateData) => {
+  try {
+    const currentUser = await getClerkUser(clerkUserId);
+    const currentMetadata = currentUser.public_metadata || {};
+    // Merge current metadata with updateData (updateData takes precedence)
+    const newMetadata = { ...currentMetadata, ...updateData };
+    return await updateClerkUser(clerkUserId, newMetadata);
+  } catch (error) {
+    console.error('Error updating Clerk user (merged):', error);
+    throw error;
+  }
+};
+
 exports.handler = async (event, context) => {
   // Handle OPTIONS requests for CORS preflight
   if (event.httpMethod === 'OPTIONS') {
@@ -136,49 +173,54 @@ exports.handler = async (event, context) => {
   const clerkUserId = dataObject.metadata && dataObject.metadata.clerkUserId;
 
   try {
-    // Process different event types
     switch (eventType) {
+      // Paid events: Overwrite metadata with just the paid flag (removing any expiration date)
       case 'checkout.session.completed':
-        console.log('Processing checkout.session.completed');
+      case 'invoice.paid':
+      case 'invoice.payment_succeeded':
+        console.log(`Processing ${eventType}`);
         if (clerkUserId) {
           await updateClerkUser(clerkUserId, { paid: true });
         }
         break;
+      // Payment failure events: Revoke access immediately
+      case 'invoice.payment_failed':
       case 'checkout.session.expired':
-        console.log('Processing checkout.session.expired');
+        console.log(`Processing ${eventType}`);
         if (clerkUserId) {
           await updateClerkUser(clerkUserId, { paid: false });
         }
         break;
-      case 'customer.subscription.created':
-        console.log('Processing customer.subscription.created');
-        if (clerkUserId) {
-          await updateClerkUser(clerkUserId, { subscriptionActive: true });
-        }
-        break;
+      // Subscription cancelled: Set expiration date based on current_period_end from the webhook event
       case 'customer.subscription.deleted':
         console.log('Processing customer.subscription.deleted');
         if (clerkUserId) {
-          await updateClerkUser(clerkUserId, { subscriptionActive: false });
+          // Get current_period_end from the subscription item
+          let currentPeriodEnd = null;
+          if (dataObject.items && dataObject.items.data && dataObject.items.data.length > 0) {
+            currentPeriodEnd = dataObject.items.data[0].current_period_end;
+          }
+          
+          const currentTime = Math.floor(Date.now() / 1000);
+          if (currentPeriodEnd && currentPeriodEnd > currentTime) {
+            console.log(`Subscription deleted but still valid until ${new Date(currentPeriodEnd * 1000).toISOString()}`);
+            await updateClerkUserMerged(clerkUserId, { 
+              subscriptionEndDate: currentPeriodEnd, 
+              paid: true // Keep access until the end date
+            });
+          } else {
+            console.log('Subscription deleted and period has ended');
+            await updateClerkUserMerged(clerkUserId, { 
+              subscriptionEndDate: null, 
+              paid: false 
+            });
+          }
         }
         break;
-      case 'invoice.paid':
-      case 'invoice.payment_succeeded':
-        console.log('Processing invoice.paid/invoice.payment_succeeded');
-        if (clerkUserId) {
-          await updateClerkUser(clerkUserId, { paid: true });
-        }
-        break;
-      case 'invoice.payment_failed':
-        console.log('Processing invoice.payment_failed');
-        if (clerkUserId) {
-          await updateClerkUser(clerkUserId, { paid: false });
-        }
-        break;
+      // Unhandled events
       default:
         console.log(`Unhandled event type: ${eventType}`);
     }
-
     return {
       statusCode: 200,
       headers: {

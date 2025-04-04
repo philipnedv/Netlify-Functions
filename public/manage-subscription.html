@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manage Your Subscription</title>
+  <style>
+    body {
+      font-family: 'Rubik', sans-serif;
+      background-color: #121212;
+      color: #ffffff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .container {
+      text-align: center;
+      padding: 2rem;
+      border-radius: 8px;
+      background-color: #1e1e1e;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      max-width: 500px;
+    }
+    h1 {
+      color: #4169E1;
+      margin-bottom: 1rem;
+    }
+    p {
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+    .loading {
+      display: inline-block;
+      width: 50px;
+      height: 50px;
+      border: 5px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #4169E1;
+      animation: spin 1s ease-in-out infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+  <!-- Include Clerk SDK -->
+  <script
+    async
+    crossorigin="anonymous"
+    data-clerk-publishable-key="pk_test_c3F1YXJlLWhvcnNlLTYxLmNsZXJrLmFjY291bnRzLmRldiQ"
+    src="https://square-horse-61.clerk.accounts.dev/npm/@clerk/clerk-js@5/dist/clerk.browser.js"
+  ></script>
+</head>
+<body>
+  <div class="container">
+    <h1>Redirecting to Subscription Management</h1>
+    <p>Please wait while we redirect you to your subscription management portal...</p>
+    <div class="loading"></div>
+  </div>
+
+  <script>
+    // Wait for Clerk to load
+    window.addEventListener('load', async function() {
+      try {
+        // Initialize Clerk
+        await Clerk.load();
+        
+        if (!Clerk.user) {
+          // If not signed in, redirect to sign-in
+          window.location.href = '/';
+          return;
+        }
+        
+        // Get the user ID
+        const userId = Clerk.user.id;
+        
+        // Use fetch to call the portal session function
+        fetch(`/.netlify/functions/create-portal-session?userId=${userId}`)
+          .then(response => {
+            if (response.redirected) {
+              // If the response contains a redirect URL, go there
+              window.location.href = response.url;
+            } else {
+              // If not redirected, parse the JSON response
+              return response.json().then(data => {
+                if (data.url) {
+                  window.location.href = data.url;
+                } else {
+                  throw new Error(data.error || 'Failed to get portal URL');
+                }
+              });
+            }
+          })
+          .catch(error => {
+            console.error('Fetch error:', error);
+            document.querySelector('.container').innerHTML = `
+              <h1>Error</h1>
+              <p>Sorry, we couldn't redirect you to the subscription management portal. Please try again later.</p>
+              <p>Error details: ${error.message}</p>
+              <a href="/" style="color: #4169E1; text-decoration: none;">Return to Home</a>
+            `;
+          });
+      } catch (error) {
+        console.error('Error:', error);
+        document.querySelector('.container').innerHTML = `
+          <h1>Error</h1>
+          <p>Sorry, we couldn't redirect you to the subscription management portal. Please try again later.</p>
+          <p>Error details: ${error.message}</p>
+          <a href="/" style="color: #4169E1; text-decoration: none;">Return to Home</a>
+        `;
+      }
+    });
+  </script>
+</body>
+</html>

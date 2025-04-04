@@ -15,6 +15,31 @@
     ></script>
     <!-- Include Stripe.js -->
     <script src="https://js.stripe.com/v3/"></script>
+    
+    <!-- Auto-refresh script for Stripe checkout -->
+    <script>
+      // Check if we're on a Stripe checkout page
+      if (window.location.href.includes('checkout.stripe.com')) {
+        // Get the redirect timestamp
+        const redirectTime = localStorage.getItem('stripeRedirectTime');
+        const currentTime = Date.now();
+        
+        // Only refresh if we just got redirected (within last 3 seconds)
+        // and haven't refreshed yet
+        if (redirectTime && (currentTime - parseInt(redirectTime)) < 3000) {
+          // Set a flag to prevent infinite refresh
+          localStorage.setItem('stripePageRefreshed', 'true');
+          console.log('Auto-refreshing Stripe checkout page...');
+          // Refresh the page
+          window.location.reload();
+        }
+      } else {
+        // If we're not on a Stripe page, clear all Stripe-related data
+        localStorage.removeItem('stripePageRefreshed');
+        localStorage.removeItem('stripeCheckoutSessionId');
+        localStorage.removeItem('stripeRedirectTime');
+      }
+    </script>
 
     <style>
       /* Reset default margins and ensure full viewport coverage */
@@ -159,7 +184,7 @@
               "botDescription": "Effortless eBay listings",
               "website": {
                 "title": "Website",
-                "link": "https://yourdomain.com"
+                "link": "https://cosmic-salamander-18640e.netlify.app"
               },
               "email": {
                 "title": "Email",
@@ -170,8 +195,8 @@
                 "link": "tel:+1234567890"
               },
               "termsOfService": {
-                "title": "Terms",
-                "link": "https://yourdomain.com/terms"
+                "title": "Manage Subscription",
+                "link": "https://cosmic-salamander-18640e.netlify.app/manage-subscription.html"
               },
               "privacyPolicy": {
                 "title": "Privacy Policy",
@@ -198,8 +223,16 @@
             const unsafeMetadata = Clerk.user?.unsafeMetadata || {};
             const count = unsafeMetadata.count ? Number(unsafeMetadata.count) : 0;
             const paid = publicMetadata.paid === true;
+            const subscriptionEndDate = publicMetadata.subscriptionEndDate;
+            const currentTime = Math.floor(Date.now() / 1000);
             
-            console.log("Checking access - count:", count, "paid:", paid);
+            console.log("Checking access - count:", count, "paid:", paid, "subscriptionEndDate:", subscriptionEndDate);
+            
+            // Check if user has a subscription end date and if it's still valid
+            if (subscriptionEndDate && currentTime < subscriptionEndDate) {
+              console.log(`User has access until ${new Date(subscriptionEndDate * 1000).toISOString()}`);
+              return originalBotpressOpen();
+            }
             
             // If count is over 5 and user isn't marked as paid, initiate checkout instead of opening the bot.
             if (count > 5 && !paid) {
@@ -236,6 +269,13 @@
                   // Use environment variable for Stripe key
                   const stripeKey = 'pk_test_51QxZsOH5gbEV3WXhmvSAIpA6mw9sOgdz0B0WdT7ylBX7mr3t7QLD0teqeEqsrwkV2QUDfpouEVafD00zl2mNfV0G00Jyb8bBzD'; // Replace with your actual key in production
                   const stripe = Stripe(stripeKey);
+                  
+                  // Store the checkout session ID in localStorage
+                  localStorage.setItem('stripeCheckoutSessionId', data.id);
+                  
+                  // Add a timestamp to know when the redirect happened
+                  localStorage.setItem('stripeRedirectTime', Date.now().toString());
+                  
                   return stripe.redirectToCheckout({ sessionId: data.id });
                 })
                 .then(result => {
@@ -263,10 +303,16 @@
             const unsafeMetadata = Clerk.user.unsafeMetadata || {};
             const count = unsafeMetadata.count ? Number(unsafeMetadata.count) : 0;
             const paid = publicMetadata.paid === true;
+            const subscriptionEndDate = publicMetadata.subscriptionEndDate;
+            const currentTime = Math.floor(Date.now() / 1000);
             
-            console.log("Initial check - count:", count, "paid:", paid);
+            console.log("Initial check - count:", count, "paid:", paid, "subscriptionEndDate:", subscriptionEndDate);
             
-            if (count <= 5) {
+            // Check if user has a valid subscription end date
+            if (subscriptionEndDate && currentTime < subscriptionEndDate) {
+              console.log(`User has access until ${new Date(subscriptionEndDate * 1000).toISOString()}`);
+              window.botpress.open();
+            } else if (count <= 5) {
               console.log("Count is 5 or less (or not set), opening bot.");
               window.botpress.open();
             } else {
@@ -289,10 +335,16 @@
               const unsafeMetadata = user.unsafeMetadata || {};
               const count = unsafeMetadata.count ? Number(unsafeMetadata.count) : 0;
               const paid = publicMetadata.paid === true;
+              const subscriptionEndDate = publicMetadata.subscriptionEndDate;
+              const currentTime = Math.floor(Date.now() / 1000);
               
-              console.log("User updated - count:", count, "paid:", paid);
+              console.log("User updated - count:", count, "paid:", paid, "subscriptionEndDate:", subscriptionEndDate);
               
-              if (count <= 5) {
+              // Check if user has a valid subscription end date
+              if (subscriptionEndDate && currentTime < subscriptionEndDate) {
+                console.log(`User has access until ${new Date(subscriptionEndDate * 1000).toISOString()}`);
+                window.botpress.open();
+              } else if (count <= 5) {
                 window.botpress.open();
               } else {
                 if (paid) {
