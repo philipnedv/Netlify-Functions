@@ -77,23 +77,17 @@
         
         // Use fetch to call the portal session function
         fetch(`/.netlify/functions/create-portal-session?userId=${userId}`)
-          .then(response => {
-            if (response.redirected) {
-              // If the response contains a redirect URL, go there
-              window.location.href = response.url;
+          .then(response => response.json())
+          .then(data => {
+            if (data.url) {
+              // Manually redirect to Stripe portal
+              window.location.href = data.url;
             } else {
-              // If not redirected, parse the JSON response
-              return response.json().then(data => {
-                if (data.url) {
-                  window.location.href = data.url;
-                } else {
-                  throw new Error(data.error || 'Failed to get portal URL');
-                }
-              });
+              throw new Error(data.error || 'No portal URL returned');
             }
           })
           .catch(error => {
-            console.error('Fetch error:', error);
+            console.error('Error accessing subscription portal:', error);
             document.querySelector('.container').innerHTML = `
               <h1>Error</h1>
               <p>Sorry, we couldn't redirect you to the subscription management portal. Please try again later.</p>

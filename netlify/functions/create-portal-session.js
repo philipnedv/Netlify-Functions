@@ -111,12 +111,12 @@ exports.handler = async (event, context) => {
       return_url: process.env.APP_URL || 'https://cosmic-salamander-18640e.netlify.app/',
     });
 
-    // Redirect to the Customer Portal
+    // Return the URL instead of redirecting
     return {
-      statusCode: 303,
+      statusCode: 200,
       headers: {
         'Access-Control-Allow-Origin': '*',
-        'Location': session.url,
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ url: session.url }),
     };
