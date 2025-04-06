@@ -168,6 +168,13 @@ exports.handler = async (event, context) => {
   // Detailed logging for debugging purposes
   console.log(`Received event: ${eventType}`);
   console.log('Event data:', JSON.stringify(dataObject, null, 2));
+  
+  // Log the Clerk user ID if present
+  if (clerkUserId) {
+    console.log(`Processing event for Clerk user: ${clerkUserId}`);
+  } else {
+    console.log('No Clerk user ID found in metadata, skipping user update');
+  }
 
   // Extract the Clerk user ID from the Stripe metadata (if set)
   const clerkUserId = dataObject.metadata && dataObject.metadata.clerkUserId;
@@ -196,11 +203,15 @@ exports.handler = async (event, context) => {
       case 'customer.subscription.updated':
         console.log('Processing customer.subscription.updated');
         console.log('Full subscription object:', JSON.stringify(dataObject, null, 2));
+        console.log('Subscription status:', dataObject.status);
+        console.log('Cancel at period end:', dataObject.cancel_at_period_end);
+        console.log('Current period end:', dataObject.current_period_end);
         
         if (clerkUserId) {
           // Check if the subscription was canceled (status remains active but cancel_at_period_end becomes true)
           if (dataObject.cancel_at_period_end === true) {
             const currentTime = Math.floor(Date.now() / 1000);
+            console.log('Current time:', currentTime);
             
             // Only set subscriptionEndDate if current_period_end is in the future
             if (dataObject.current_period_end && dataObject.current_period_end > currentTime) {
@@ -210,12 +221,14 @@ exports.handler = async (event, context) => {
                 subscriptionEndDate: dataObject.current_period_end,
                 paid: true // Keep access until the end date
               });
+              console.log('Updated user metadata with subscription end date');
             } else {
               console.log('Subscription was canceled and period has already ended');
               await updateClerkUser(clerkUserId, { 
                 paid: false,
                 subscriptionEndDate: null
               });
+              console.log('Revoked access immediately as period has ended');
             }
           } 
           // If subscription is active and not canceled at period end, just use the paid flag
