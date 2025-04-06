@@ -60,13 +60,16 @@ exports.handler = async (event, context) => {
     
     if (event.httpMethod === 'GET') {
       clerkUserId = event.queryStringParameters?.userId;
+      console.log('GET request with userId:', clerkUserId);
     } else {
       // For POST requests, parse the body
       const body = JSON.parse(event.body || '{}');
       clerkUserId = body.userId;
+      console.log('POST request with userId:', clerkUserId);
     }
     
     if (!clerkUserId) {
+      console.log('No userId found in request:', event);
       return {
         statusCode: 400,
         headers: { 'Access-Control-Allow-Origin': '*' },
@@ -75,6 +78,7 @@ exports.handler = async (event, context) => {
     }
 
     // Get the Clerk user data using the server-side API key
+    console.log('Fetching Clerk user with ID:', clerkUserId);
     const clerkUser = await getClerkUser(clerkUserId);
     
     if (!clerkUser) {
