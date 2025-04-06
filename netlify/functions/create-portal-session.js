@@ -118,6 +118,33 @@ exports.handler = async (event, context) => {
       customerId = newCustomer.id;
       console.log(`Created new customer with ID: ${customerId}`);
     }
+    
+    // Update any active subscriptions with the same metadata (for both new and existing customers)
+    try {
+      const subscriptions = await stripe.subscriptions.list({
+        customer: customerId,
+        status: 'active',
+        limit: 10
+      });
+      
+      if (subscriptions.data.length > 0) {
+        console.log(`Found ${subscriptions.data.length} active subscriptions, updating their metadata`);
+        
+        for (const subscription of subscriptions.data) {
+          await stripe.subscriptions.update(subscription.id, {
+            metadata: {
+              clerkUserId: clerkUserId
+            }
+          });
+          console.log(`Updated metadata for subscription ${subscription.id}`);
+        }
+      } else {
+        console.log('No active subscriptions found for this customer');
+      }
+    } catch (error) {
+      console.error('Error updating subscription metadata:', error);
+      // Continue even if subscription update fails
+    }
 
     // Create a Stripe Customer Portal session
     const session = await stripe.billingPortal.sessions.create({
