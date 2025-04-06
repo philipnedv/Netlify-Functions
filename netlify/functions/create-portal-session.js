@@ -98,6 +98,15 @@ exports.handler = async (event, context) => {
     let customerId;
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
+      console.log(`Using existing customer ${customerId}, updating metadata with clerkUserId: ${clerkUserId}`);
+      
+      // Update the existing customer with the Clerk user ID
+      await stripe.customers.update(customerId, {
+        metadata: {
+          clerkUserId: clerkUserId
+        }
+      });
+      console.log('Customer metadata updated successfully');
     } else {
       // If no customer exists, create one
       const newCustomer = await stripe.customers.create({
@@ -107,6 +116,7 @@ exports.handler = async (event, context) => {
         }
       });
       customerId = newCustomer.id;
+      console.log(`Created new customer with ID: ${customerId}`);
     }
 
     // Create a Stripe Customer Portal session
