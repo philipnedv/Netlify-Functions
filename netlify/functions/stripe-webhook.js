@@ -180,7 +180,7 @@ exports.handler = async (event, context) => {
       case 'invoice.payment_succeeded':
         console.log(`Processing ${eventType}`);
         if (clerkUserId) {
-          await updateClerkUser(clerkUserId, { paid: true });
+          await updateClerkUser(clerkUserId, { paid: true, subscriptionEndDate: null });
         }
         break;
       // Payment failure events: Revoke access immediately
@@ -188,33 +188,64 @@ exports.handler = async (event, context) => {
       case 'checkout.session.expired':
         console.log(`Processing ${eventType}`);
         if (clerkUserId) {
-          await updateClerkUser(clerkUserId, { paid: false });
+          await updateClerkUser(clerkUserId, { paid: false, subscriptionEndDate: null });
         }
         break;
-      // Subscription cancelled: Set expiration date based on current_period_end from the webhook event
+        
+      // Handle subscription updates (including cancellations)
+      case 'customer.subscription.updated':
+        console.log('Processing customer.subscription.updated');
+        console.log('Full subscription object:', JSON.stringify(dataObject, null, 2));
+        
+        if (clerkUserId) {
+          // Check if the subscription was canceled (status remains active but cancel_at_period_end becomes true)
+          if (dataObject.cancel_at_period_end === true) {
+            const currentTime = Math.floor(Date.now() / 1000);
+            
+            // Only set subscriptionEndDate if current_period_end is in the future
+            if (dataObject.current_period_end && dataObject.current_period_end > currentTime) {
+              console.log(`Subscription was canceled but remains active until ${new Date(dataObject.current_period_end * 1000).toISOString()}`);
+              // Set the subscription end date to current_period_end
+              await updateClerkUserMerged(clerkUserId, { 
+                subscriptionEndDate: dataObject.current_period_end,
+                paid: true // Keep access until the end date
+              });
+            } else {
+              console.log('Subscription was canceled and period has already ended');
+              await updateClerkUser(clerkUserId, { 
+                paid: false,
+                subscriptionEndDate: null
+              });
+            }
+          } 
+          // If subscription is active and not canceled at period end, just use the paid flag
+          else if (dataObject.status === 'active' && !dataObject.cancel_at_period_end) {
+            console.log('Subscription is active and not scheduled for cancellation');
+            await updateClerkUser(clerkUserId, { 
+              paid: true,
+              subscriptionEndDate: null // Remove any end date
+            });
+          }
+          // If subscription is not active, revoke access
+          else if (dataObject.status !== 'active') {
+            console.log(`Subscription status changed to: ${dataObject.status}`);
+            await updateClerkUser(clerkUserId, { 
+              paid: false,
+              subscriptionEndDate: null
+            });
+          }
+        }
+        break;
+        
+      // Subscription deleted: Immediately revoke access
       case 'customer.subscription.deleted':
         console.log('Processing customer.subscription.deleted');
         if (clerkUserId) {
-          // Get current_period_end from the subscription item
-          let currentPeriodEnd = null;
-          if (dataObject.items && dataObject.items.data && dataObject.items.data.length > 0) {
-            currentPeriodEnd = dataObject.items.data[0].current_period_end;
-          }
-          
-          const currentTime = Math.floor(Date.now() / 1000);
-          if (currentPeriodEnd && currentPeriodEnd > currentTime) {
-            console.log(`Subscription deleted but still valid until ${new Date(currentPeriodEnd * 1000).toISOString()}`);
-            await updateClerkUserMerged(clerkUserId, { 
-              subscriptionEndDate: currentPeriodEnd, 
-              paid: true // Keep access until the end date
-            });
-          } else {
-            console.log('Subscription deleted and period has ended');
-            await updateClerkUserMerged(clerkUserId, { 
-              subscriptionEndDate: null, 
-              paid: false 
-            });
-          }
+          console.log('Subscription fully deleted, revoking access');
+          await updateClerkUser(clerkUserId, { 
+            subscriptionEndDate: null, 
+            paid: false 
+          });
         }
         break;
       // Unhandled events
