@@ -165,6 +165,10 @@ exports.handler = async (event, context) => {
 
   const eventType = stripeEvent.type;
   const dataObject = stripeEvent.data.object;
+  
+  // Extract the Clerk user ID from the Stripe metadata (if set)
+  const clerkUserId = dataObject.metadata && dataObject.metadata.clerkUserId;
+  
   // Detailed logging for debugging purposes
   console.log(`Received event: ${eventType}`);
   console.log('Event data:', JSON.stringify(dataObject, null, 2));
@@ -175,9 +179,6 @@ exports.handler = async (event, context) => {
   } else {
     console.log('No Clerk user ID found in metadata, skipping user update');
   }
-
-  // Extract the Clerk user ID from the Stripe metadata (if set)
-  const clerkUserId = dataObject.metadata && dataObject.metadata.clerkUserId;
 
   try {
     switch (eventType) {
