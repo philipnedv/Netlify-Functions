@@ -182,6 +182,34 @@ exports.handler = async (event, context) => {
 
   try {
     switch (eventType) {
+      // Handle invoice creation to add metadata
+      case 'invoice.created':
+        console.log('Processing invoice.created');
+        // If invoice doesn't have clerkUserId in metadata but has a customer
+        if (!clerkUserId && dataObject.customer) {
+          try {
+            // Get the customer to find the clerkUserId
+            const customer = await stripe.customers.retrieve(dataObject.customer);
+            const customerClerkUserId = customer.metadata && customer.metadata.clerkUserId;
+            
+            if (customerClerkUserId) {
+              console.log(`Adding clerkUserId ${customerClerkUserId} to invoice ${dataObject.id}`);
+              // Update the invoice with the clerkUserId from the customer
+              await stripe.invoices.update(dataObject.id, {
+                metadata: {
+                  clerkUserId: customerClerkUserId
+                }
+              });
+              console.log(`Successfully updated invoice ${dataObject.id} with clerkUserId metadata`);
+            } else {
+              console.log(`Customer ${dataObject.customer} has no clerkUserId in metadata`);
+            }
+          } catch (err) {
+            console.error('Error updating invoice metadata:', err);
+          }
+        }
+        break;
+        
       // Paid events: Overwrite metadata with just the paid flag (removing any expiration date)
       case 'checkout.session.completed':
       case 'invoice.paid':

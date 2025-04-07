@@ -97,16 +97,21 @@ exports.handler = async (event, context) => {
 
     let customerId;
     if (customers.data.length > 0) {
-      customerId = customers.data[0].id;
-      console.log(`Using existing customer ${customerId}, updating metadata with clerkUserId: ${clerkUserId}`);
+      const customer = customers.data[0];
+      customerId = customer.id;
       
-      // Update the existing customer with the Clerk user ID
-      await stripe.customers.update(customerId, {
-        metadata: {
-          clerkUserId: clerkUserId
-        }
-      });
-      console.log('Customer metadata updated successfully');
+      // Only update customer metadata if clerkUserId is missing
+      if (!customer.metadata?.clerkUserId) {
+        console.log(`Updating existing customer ${customerId} with clerkUserId: ${clerkUserId}`);
+        await stripe.customers.update(customerId, {
+          metadata: {
+            clerkUserId: clerkUserId
+          }
+        });
+        console.log('Customer metadata updated successfully');
+      } else {
+        console.log(`Customer ${customerId} already has clerkUserId: ${customer.metadata.clerkUserId}`);
+      }
     } else {
       // If no customer exists, create one
       const newCustomer = await stripe.customers.create({
@@ -119,7 +124,7 @@ exports.handler = async (event, context) => {
       console.log(`Created new customer with ID: ${customerId}`);
     }
     
-    // Update any active subscriptions with the same metadata (for both new and existing customers)
+    // Update any active subscriptions with the same metadata (only if needed)
     try {
       const subscriptions = await stripe.subscriptions.list({
         customer: customerId,
@@ -128,15 +133,21 @@ exports.handler = async (event, context) => {
       });
       
       if (subscriptions.data.length > 0) {
-        console.log(`Found ${subscriptions.data.length} active subscriptions, updating their metadata`);
+        console.log(`Found ${subscriptions.data.length} active subscriptions`);
         
         for (const subscription of subscriptions.data) {
-          await stripe.subscriptions.update(subscription.id, {
-            metadata: {
-              clerkUserId: clerkUserId
-            }
-          });
-          console.log(`Updated metadata for subscription ${subscription.id}`);
+          // Only update subscription metadata if clerkUserId is missing
+          if (!subscription.metadata?.clerkUserId) {
+            console.log(`Updating metadata for subscription ${subscription.id}`);
+            await stripe.subscriptions.update(subscription.id, {
+              metadata: {
+                clerkUserId: clerkUserId
+              }
+            });
+            console.log(`Updated metadata for subscription ${subscription.id}`);
+          } else {
+            console.log(`Subscription ${subscription.id} already has clerkUserId: ${subscription.metadata.clerkUserId}`);
+          }
         }
       } else {
         console.log('No active subscriptions found for this customer');
