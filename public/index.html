@@ -236,34 +236,54 @@
                 })
               })
                 .then(response => {
-                  if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                  }
-                  return response.json();
+                  console.log("Checkout response status:", response.status);
+                  // Clone the response so we can log it and still use it
+                  return response.clone().text().then(text => {
+                    try {
+                      console.log("Raw response:", text);
+                      // Now parse the original response as JSON
+                      return response.json();
+                    } catch (e) {
+                      console.error("Error parsing response as JSON:", e);
+                      throw new Error(`Invalid JSON response: ${text}`);
+                    }
+                  });
                 })
                 .then(data => {
                   console.log("Checkout session created:", data);
                   
-                  // Don't store in localStorage anymore since we're using direct navigation
+                  // Check if we have a valid session with a URL
+                  if (!data || !data.id) {
+                    throw new Error("Invalid checkout session data received");
+                  }
                   
                   // If the backend returns the URL directly
                   if (data.url) {
                     console.log("Redirecting to checkout URL:", data.url);
                     // Add a small delay to ensure the loading spinner is visible
                     setTimeout(() => {
+                      // Open in the same window
                       window.location.href = data.url;
-                    }, 100);
+                    }, 500); // Increased delay to 500ms
                   } else {
                     // Fallback to the old method if needed
                     console.log("Using Stripe.js redirect with session ID:", data.id);
                     const stripeKey = 'pk_test_51QxZsOH5gbEV3WXhmvSAIpA6mw9sOgdz0B0WdT7ylBX7mr3t7QLD0teqeEqsrwkV2QUDfpouEVafD00zl2mNfV0G00Jyb8bBzD';
                     const stripe = Stripe(stripeKey);
-                    return stripe.redirectToCheckout({ sessionId: data.id });
+                    
+                    // Use a try-catch block for the redirect
+                    try {
+                      return stripe.redirectToCheckout({ sessionId: data.id });
+                    } catch (stripeError) {
+                      console.error("Stripe redirect error:", stripeError);
+                      throw stripeError;
+                    }
                   }
                 })
                 .then(result => {
-                  if (result.error) {
-                    console.error('Stripe redirect error:', result.error);
+                  // This will only execute for the stripe.redirectToCheckout() path
+                  if (result && result.error) {
+                    console.error('Stripe redirect result error:', result.error);
                     throw new Error(result.error.message);
                   }
                 })
@@ -271,8 +291,8 @@
                   console.error('Error initiating checkout:', error);
                   // Hide loading spinner in case of error
                   document.getElementById('loading-spinner').classList.add('hidden');
-                  // Show user-friendly error message
-                  alert('Unable to process your payment request. Please try again later.');
+                  // Show user-friendly error message with more details
+                  alert(`Unable to process your payment request: ${error.message}. Please try again later.`);
                 });
               return; // Prevent normal bot open
             }
