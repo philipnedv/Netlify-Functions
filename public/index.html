@@ -396,6 +396,7 @@
             console.log(event);
             let count = Clerk.user.unsafeMetadata.count || 0;
             count++;
+            
             Clerk.user.update({
               unsafeMetadata: {
                 count: count
@@ -403,6 +404,21 @@
             })
             .then((updatedUser) => {
               console.log('User metadata updated:', updatedUser.unsafeMetadata.count);
+              
+              // Add a delay to ensure Clerk.user is refreshed
+              setTimeout(() => {
+                // Force a refresh of the Clerk user object
+                Clerk.user.reload().then(() => {
+                  console.log('User reloaded, current count:', Clerk.user.unsafeMetadata.count);
+                  
+                  // Check if we need to trigger checkout flow
+                  if (count > 5 && !updatedUser.publicMetadata.paid) {
+                    console.log('Count exceeds limit, triggering checkout flow manually');
+                    // Manually trigger the checkout flow by calling open() which will run our override
+                    window.botpress.open();
+                  }
+                });
+              }, 1000); // 1 second delay
             })
             .catch((error) => {
               console.error('Error updating user metadata:', error);
