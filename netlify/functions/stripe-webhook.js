@@ -45,9 +45,9 @@ const log = (level, message, context = {}) => {
  * @param {string} clerkUserId - The Clerk user ID from Stripe metadata.
  * @param {object} updateData - The data you want to update on the Clerk user.
  */
-const updateClerkUser = async (clerkUserId, updateData) => {
+const updateClerkUser = async (clerkUserId, updateData, requestId) => {
   try {
-    log('info', 'Updating Clerk user', { clerkUserId, updateData });
+    log('info', 'Updating Clerk user', { clerkUserId, updateData, requestId });
     
     // Wrap updateData inside public_metadata for updating Clerk
     const response = await axios.patch(
@@ -61,6 +61,7 @@ const updateClerkUser = async (clerkUserId, updateData) => {
           'Content-Type': 'application/json',
           'Idempotency-Key': `clerk_update_${clerkUserId}_${Date.now()}`
         },
+        timeout: 10000 // 10 second timeout
       }
     );
     
@@ -118,6 +119,9 @@ const updateClerkUserMerged = async (clerkUserId, updateData) => {
 };
 
 exports.handler = async (event, context) => {
+  // Generate a unique request ID for tracking this webhook event
+  const requestId = `webhook_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+  
   // Handle OPTIONS requests for CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return {
@@ -152,12 +156,16 @@ exports.handler = async (event, context) => {
       process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
-    console.error('Webhook signature verification failed:', err.message);
+    log('error', 'Webhook signature verification failed', { 
+      requestId, 
+      error: err.message 
+    });
     return {
       statusCode: 400,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type, stripe-signature',
+        'X-Request-ID': requestId
       },
       body: `Webhook Error: ${err.message}`,
     };
@@ -170,21 +178,24 @@ exports.handler = async (event, context) => {
   const clerkUserId = dataObject.metadata && dataObject.metadata.clerkUserId;
   
   // Detailed logging for debugging purposes
-  console.log(`Received event: ${eventType}`);
-  console.log('Event data:', JSON.stringify(dataObject, null, 2));
+  log('info', `Received event: ${eventType}`, { 
+    requestId, 
+    eventId: stripeEvent.id,
+    objectId: dataObject.id,
+    clerkUserId: clerkUserId || 'not_found'
+  });
   
-  // Log the Clerk user ID if present
-  if (clerkUserId) {
-    console.log(`Processing event for Clerk user: ${clerkUserId}`);
-  } else {
-    console.log('No Clerk user ID found in metadata, skipping user update');
-  }
+  // More detailed logging can be done at debug level
+  log('debug', 'Event data details', {
+    requestId,
+    eventData: JSON.stringify(dataObject, null, 2)
+  });
 
   try {
     switch (eventType) {
       // Handle invoice creation to add metadata
       case 'invoice.created':
-        console.log('Processing invoice.created');
+        log('info', 'Processing invoice.created', { requestId });
         // If invoice doesn't have clerkUserId in metadata but has a customer
         if (!clerkUserId && dataObject.customer) {
           try {
@@ -193,40 +204,120 @@ exports.handler = async (event, context) => {
             const customerClerkUserId = customer.metadata && customer.metadata.clerkUserId;
             
             if (customerClerkUserId) {
-              console.log(`Adding clerkUserId ${customerClerkUserId} to invoice ${dataObject.id}`);
+              log('info', `Adding clerkUserId to invoice`, { 
+                requestId, 
+                clerkUserId: customerClerkUserId, 
+                invoiceId: dataObject.id 
+              });
               // Update the invoice with the clerkUserId from the customer
               await stripe.invoices.update(dataObject.id, {
                 metadata: {
                   clerkUserId: customerClerkUserId
                 }
               });
-              console.log(`Successfully updated invoice ${dataObject.id} with clerkUserId metadata`);
+              log('info', `Successfully updated invoice with clerkUserId metadata`, { 
+                requestId, 
+                invoiceId: dataObject.id 
+              });
             } else {
-              console.log(`Customer ${dataObject.customer} has no clerkUserId in metadata`);
+              log('info', `Customer has no clerkUserId in metadata`, { 
+                requestId, 
+                customerId: dataObject.customer 
+              });
             }
           } catch (err) {
-            console.error('Error updating invoice metadata:', err);
+            log('error', 'Error updating invoice metadata', { 
+              requestId, 
+              invoiceId: dataObject.id,
+              error: err.message,
+              stack: err.stack
+            });
           }
         }
         break;
         
-      // Paid events: Overwrite metadata with just the paid flag (removing any expiration date)
-      case 'checkout.session.completed':
+      // Payment confirmation events: set the paid flag based on definitive invoice payment events
       case 'invoice.paid':
-      case 'invoice.payment_succeeded':
-        console.log(`Processing ${eventType}`);
-        if (clerkUserId) {
-          await updateClerkUser(clerkUserId, { paid: true, subscriptionEndDate: null });
+      case 'invoice.payment_succeeded': {
+        log('info', `Processing ${eventType}`, { requestId });
+        let effectiveClerkUserId;
+        // Check if invoice metadata already has a clerkUserId
+        if (!dataObject.metadata || !dataObject.metadata.clerkUserId) {
+          // If not, and we have a customer ID, retrieve the customer to get the Clerk user ID
+          if (dataObject.customer) {
+            try {
+              const customer = await stripe.customers.retrieve(dataObject.customer);
+              effectiveClerkUserId = customer.metadata && customer.metadata.clerkUserId;
+              if (effectiveClerkUserId) {
+                log('info', `Appending clerkUserId to invoice`, { 
+                  requestId, 
+                  clerkUserId: effectiveClerkUserId, 
+                  invoiceId: dataObject.id 
+                });
+                // Update the invoice with the clerkUserId from the customer
+                await stripe.invoices.update(dataObject.id, {
+                  metadata: { clerkUserId: effectiveClerkUserId }
+                });
+                log('info', `Successfully appended clerkUserId to invoice`, { 
+                  requestId, 
+                  invoiceId: dataObject.id 
+                });
+              }
+            } catch (err) {
+              log('error', `Error retrieving customer for invoice`, { 
+                requestId, 
+                invoiceId: dataObject.id, 
+                error: err.message,
+                stack: err.stack
+              });
+            }
+          }
+        } else {
+          effectiveClerkUserId = dataObject.metadata.clerkUserId;
+          log('info', `Using existing clerkUserId from invoice metadata`, { 
+            requestId, 
+            clerkUserId: effectiveClerkUserId 
+          });
+        }
+        if (effectiveClerkUserId) {
+          // Now update the backend to mark the user as paid
+          await updateClerkUser(effectiveClerkUserId, { paid: true, subscriptionEndDate: null }, requestId);
         }
         break;
-      // Payment failure events: Revoke access immediately
+      }
+        
+      // Payment failure events: revoke access immediately
       case 'invoice.payment_failed':
-      case 'checkout.session.expired':
+      case 'checkout.session.expired': {
         console.log(`Processing ${eventType}`);
-        if (clerkUserId) {
-          await updateClerkUser(clerkUserId, { paid: false, subscriptionEndDate: null });
+        let effectiveClerkUserId;
+        // Check if invoice metadata already has a clerkUserId
+        if (!dataObject.metadata || !dataObject.metadata.clerkUserId) {
+          if (dataObject.customer) {
+            try {
+              const customer = await stripe.customers.retrieve(dataObject.customer);
+              effectiveClerkUserId = customer.metadata && customer.metadata.clerkUserId;
+              if (effectiveClerkUserId) {
+                console.log(`Appending clerkUserId ${effectiveClerkUserId} to invoice ${dataObject.id}`);
+                await stripe.invoices.update(dataObject.id, {
+                  metadata: { clerkUserId: effectiveClerkUserId }
+                });
+                console.log(`Successfully appended clerkUserId to invoice ${dataObject.id}`);
+              }
+            } catch (err) {
+              console.error(`Error retrieving customer for invoice ${dataObject.id}:`, err);
+            }
+          }
+        } else {
+          effectiveClerkUserId = dataObject.metadata.clerkUserId;
+          console.log(`Using existing clerkUserId ${effectiveClerkUserId} from invoice metadata`);
+        }
+        if (effectiveClerkUserId) {
+          // Update the backend to mark the user as not paid
+          await updateClerkUser(effectiveClerkUserId, { paid: false, subscriptionEndDate: null });
         }
         break;
+      }
         
       // Handle subscription updates (including cancellations)
       case 'customer.subscription.updated':
@@ -260,7 +351,7 @@ exports.handler = async (event, context) => {
               console.log('Revoked access immediately as period has ended');
             }
           } 
-          // If subscription is active and not canceled at period end, just use the paid flag
+          // If subscription is active and not scheduled for cancellation, mark as paid
           else if (dataObject.status === 'active' && !dataObject.cancel_at_period_end) {
             console.log('Subscription is active and not scheduled for cancellation');
             await updateClerkUser(clerkUserId, { 
@@ -299,18 +390,31 @@ exports.handler = async (event, context) => {
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type, stripe-signature',
+        'X-Request-ID': requestId
       },
-      body: 'Event processed successfully',
+      body: JSON.stringify({ 
+        message: 'Event processed successfully',
+        requestId
+      }),
     };
   } catch (error) {
-    console.error('Error processing event:', error);
+    log('error', 'Error processing event', { 
+      requestId, 
+      eventType,
+      errorMessage: error.message,
+      stack: error.stack
+    });
     return {
       statusCode: 500,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type, stripe-signature',
+        'X-Request-ID': requestId
       },
-      body: 'Internal Server Error',
+      body: JSON.stringify({
+        error: 'Internal Server Error',
+        requestId
+      }),
     };
   }
 };
