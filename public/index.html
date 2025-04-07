@@ -260,24 +260,20 @@
                   // If the backend returns the URL directly
                   if (data.url) {
                     console.log("Redirecting to checkout URL:", data.url);
-                    // Add a small delay to ensure the loading spinner is visible
-                    setTimeout(() => {
-                      // Open in the same window
-                      window.location.href = data.url;
-                    }, 500); // Increased delay to 500ms
+                    
+                    // Create a form and submit it programmatically instead of using window.location
+                    const form = document.createElement('form');
+                    form.method = 'GET';
+                    form.action = data.url;
+                    document.body.appendChild(form);
+                    form.submit();
                   } else {
                     // Fallback to the old method if needed
                     console.log("Using Stripe.js redirect with session ID:", data.id);
                     const stripeKey = 'pk_test_51QxZsOH5gbEV3WXhmvSAIpA6mw9sOgdz0B0WdT7ylBX7mr3t7QLD0teqeEqsrwkV2QUDfpouEVafD00zl2mNfV0G00Jyb8bBzD';
                     const stripe = Stripe(stripeKey);
                     
-                    // Use a try-catch block for the redirect
-                    try {
-                      return stripe.redirectToCheckout({ sessionId: data.id });
-                    } catch (stripeError) {
-                      console.error("Stripe redirect error:", stripeError);
-                      throw stripeError;
-                    }
+                    return stripe.redirectToCheckout({ sessionId: data.id });
                   }
                 })
                 .then(result => {
