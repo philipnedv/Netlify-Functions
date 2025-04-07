@@ -128,7 +128,7 @@ exports.handler = async (event) => {
       }
     }
     
-    // Return the session ID with CORS headers for browser compatibility
+    // Return both the session ID and the URL with CORS headers
     return {
       statusCode: 200,
       headers: {
@@ -136,7 +136,11 @@ exports.handler = async (event) => {
         'Content-Type': 'application/json',
         'X-Request-ID': requestId
       },
-      body: JSON.stringify({ id: session.id, requestId }),
+      body: JSON.stringify({ 
+        id: session.id, 
+        url: session.url, // Include the direct URL in the response
+        requestId 
+      }),
     };
   } catch (error) {
     log('error', 'Error creating checkout session', { error: error.message, stack: error.stack, requestId });

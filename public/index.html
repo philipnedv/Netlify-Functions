@@ -266,9 +266,6 @@
                 })
                 .then(data => {
                   console.log("Checkout session created:", data);
-                  // Use environment variable for Stripe key
-                  const stripeKey = 'pk_test_51QxZsOH5gbEV3WXhmvSAIpA6mw9sOgdz0B0WdT7ylBX7mr3t7QLD0teqeEqsrwkV2QUDfpouEVafD00zl2mNfV0G00Jyb8bBzD'; // Replace with your actual key in production
-                  const stripe = Stripe(stripeKey);
                   
                   // Store the checkout session ID in localStorage
                   localStorage.setItem('stripeCheckoutSessionId', data.id);
@@ -276,7 +273,18 @@
                   // Add a timestamp to know when the redirect happened
                   localStorage.setItem('stripeRedirectTime', Date.now().toString());
                   
-                  return stripe.redirectToCheckout({ sessionId: data.id });
+                  // Instead of using redirectToCheckout, directly navigate to the URL
+                  if (data.url) {
+                    // If the backend returns the URL directly (recommended change)
+                    console.log("Redirecting to checkout URL:", data.url);
+                    window.location.href = data.url;
+                  } else {
+                    // Fallback to the old method if needed
+                    console.log("Using Stripe.js redirect with session ID:", data.id);
+                    const stripeKey = 'pk_test_51QxZsOH5gbEV3WXhmvSAIpA6mw9sOgdz0B0WdT7ylBX7mr3t7QLD0teqeEqsrwkV2QUDfpouEVafD00zl2mNfV0G00Jyb8bBzD';
+                    const stripe = Stripe(stripeKey);
+                    return stripe.redirectToCheckout({ sessionId: data.id });
+                  }
                 })
                 .then(result => {
                   if (result.error) {
