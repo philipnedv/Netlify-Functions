@@ -140,10 +140,26 @@
               const user = Clerk.user;
               if (user && user.emailAddresses && user.emailAddresses.length > 0) {
                 console.log("User authenticated:", user.emailAddresses[0].emailAddress);
-                setTimeout(function () {
-                  // Calling botpress.open() here will trigger our overridden function below
-                  window.botpress.open();
-                }, 500); // 0.5 second delay
+                
+                // Function to attempt opening with retries
+                const attemptBotOpen = (attempts = 0, maxAttempts = 3) => {
+                  setTimeout(() => {
+                    console.log(`Attempting to open bot (attempt ${attempts + 1})`);
+                    try {
+                      window.botpress.open();
+                      console.log("Bot open attempt completed");
+                    } catch (e) {
+                      console.error("Error opening bot:", e);
+                      if (attempts < maxAttempts) {
+                        console.log(`Retrying bot open (${maxAttempts - attempts} attempts left)`);
+                        attemptBotOpen(attempts + 1, maxAttempts);
+                      }
+                    }
+                  }, 150); // Small initial delay of 150ms
+                };
+                
+                // Start the attempt process
+                attemptBotOpen();
               } else {
                 console.log("User not authenticated. Prompting sign-in...");
                 Clerk.openSignIn();
@@ -211,8 +227,8 @@
               return originalBotpressOpen();
             }
             
-            // If count is over 5 and user isn't marked as paid, initiate checkout instead of opening the bot.
-            if (count > 5 && !paid) {
+            // If count is 5 or more and user isn't marked as paid, initiate checkout instead of opening the bot.
+            if (count >= 5 && !paid) {
               console.log("Usage limit exceeded. Initiating checkout flow...");
               window.botpress.close();
               // Show loading spinner during checkout process
@@ -223,7 +239,7 @@
                                Clerk.user.emailAddresses.length > 0 ? 
                                Clerk.user.emailAddresses[0].emailAddress : null;
               
-              // Generate a session-specific idempotency key that will remain consistent during retries
+              // Rest of the checkout code remains the same
               const sessionId = `${Clerk.user.id}_${Math.floor(Date.now() / 60000)}`; // Changes every minute
               
               // Create a more robust fetch with timeout and retry logic
@@ -345,15 +361,15 @@
             if (subscriptionEndDate && currentTime < subscriptionEndDate) {
               console.log(`User has access until ${new Date(subscriptionEndDate * 1000).toISOString()}`);
               window.botpress.open();
-            } else if (count <= 5) {
-              console.log("Count is 5 or less (or not set), opening bot.");
+            } else if (count < 5) {
+              console.log("Count is less than 5 (or not set), opening bot.");
               window.botpress.open();
             } else {
               if (paid) {
-                console.log("Count is above 5 and paid is true, opening bot.");
+                console.log("Count is 5 or more and paid is true, opening bot.");
                 window.botpress.open();
               } else {
-                console.log("Count is above 5 and paid is not set, closing bot.");
+                console.log("Count is 5 or more and paid is not set, closing bot.");
                 window.botpress.close();
               }
             }
@@ -377,7 +393,7 @@
               if (subscriptionEndDate && currentTime < subscriptionEndDate) {
                 console.log(`User has access until ${new Date(subscriptionEndDate * 1000).toISOString()}`);
                 window.botpress.open();
-              } else if (count <= 5) {
+              } else if (count < 5) {
                 window.botpress.open();
               } else {
                 if (paid) {
@@ -405,20 +421,33 @@
             .then((updatedUser) => {
               console.log('User metadata updated:', updatedUser.unsafeMetadata.count);
               
-              // Add a delay to ensure Clerk.user is refreshed
-              setTimeout(() => {
-                // Force a refresh of the Clerk user object
-                Clerk.user.reload().then(() => {
-                  console.log('User reloaded, current count:', Clerk.user.unsafeMetadata.count);
-                  
-                  // Check if we need to trigger checkout flow
-                  if (count > 5 && !updatedUser.publicMetadata.paid) {
-                    console.log('Count exceeds limit, triggering checkout flow manually');
-                    // Manually trigger the checkout flow by calling open() which will run our override
-                    window.botpress.open();
-                  }
-                });
-              }, 1000); // 1 second delay
+              // Function to attempt user reload with retries
+              const attemptUserReload = (attempts = 0, maxAttempts = 3) => {
+                setTimeout(() => {
+                  console.log(`Attempting to reload user (attempt ${attempts + 1})`);
+                  Clerk.user.reload()
+                    .then(() => {
+                      console.log('User reloaded, current count:', Clerk.user.unsafeMetadata.count);
+                      
+                      // Check if we need to trigger checkout flow
+                      if (count >= 5 && !updatedUser.publicMetadata.paid) {
+                        console.log('Count exceeds limit, triggering checkout flow manually');
+                        // Manually trigger the checkout flow by calling open() which will run our override
+                        window.botpress.open();
+                      }
+                    })
+                    .catch(error => {
+                      console.error("Error reloading user:", error);
+                      if (attempts < maxAttempts) {
+                        console.log(`Retrying user reload (${maxAttempts - attempts} attempts left)`);
+                        attemptUserReload(attempts + 1, maxAttempts);
+                      }
+                    });
+                }, 150); // Small initial delay of 150ms
+              };
+              
+              // Start the attempt process
+              attemptUserReload();
             })
             .catch((error) => {
               console.error('Error updating user metadata:', error);
