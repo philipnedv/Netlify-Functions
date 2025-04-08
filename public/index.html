@@ -113,7 +113,7 @@
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        background-color: rgba(0, 0, 0, 0.6) !important; /* Less dark background */
+        background-color: rgba(0, 0, 0, 0.6) !important;
         position: fixed !important;
         top: 0 !important;
         left: 0 !important;
@@ -122,18 +122,28 @@
         z-index: 10001 !important;
       }
       
-      /* Make the modal card larger and more centered */
+      /* Make the modal card larger and more centered with consistent corners */
       .cl-card {
         max-width: 450px !important;
         width: 90% !important;
         box-shadow: 0 0 30px rgba(0, 0, 0, 0.5) !important;
-        background-color: white !important; /* Ensure card background is white */
-        border-radius: 8px !important; /* Rounded corners */
+        background-color: white !important;
+        border-radius: 8px !important;
+        overflow: hidden !important; /* Ensure content doesn't overflow */
+        margin: 0 auto !important; /* Center horizontally */
+      }
+      
+      /* Fix any potential footer misalignment */
+      .cl-footer, .cl-footerAction, .cl-footerActionLink {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border-radius: 0 0 8px 8px !important; /* Match bottom corners */
       }
       
       /* Ensure the modal backdrop covers everything */
       .cl-modalBackdrop {
-        opacity: 0.8 !important; /* Slightly more transparent */
+        opacity: 0.8 !important;
         width: 100vw !important;
         height: 100vh !important;
       }
