@@ -122,24 +122,72 @@
           // Show loading spinner while Clerk loads
           const loadingSpinner = document.getElementById('loading-spinner');
           
-          // Wait for ClerkJS to load so that the user data is available
-          await Clerk.load();
-          console.log("ClerkJS is loaded");
+          // Ensure spinner is visible
+          loadingSpinner.classList.remove('hidden');
+          console.log("Loading spinner displayed");
           
-          // Hide loading spinner after Clerk loads
-          loadingSpinner.classList.add('hidden');
+          // Wait for ClerkJS to load so that the user data is available
+          try {
+            await Clerk.load({
+              // Configure Clerk to prevent modal from closing when clicking outside
+              appearance: {
+                layout: {
+                  showOptionalFields: true,
+                  socialButtonsPlacement: 'bottom'
+                },
+                elements: {
+                  // Make the overlay non-interactive to prevent clicks outside
+                  modalBackdrop: {
+                    pointerEvents: 'none'
+                  }
+                }
+              }
+            });
+            console.log("ClerkJS is loaded");
+            
+            // Hide loading spinner after Clerk loads
+            loadingSpinner.classList.add('hidden');
+          } catch (error) {
+            console.error("Error loading Clerk:", error);
+            // Still hide spinner if Clerk fails to load
+            loadingSpinner.classList.add('hidden');
+          }
 
-          // Add listener for when the Clerk modal is closed
-          Clerk.addListener(({ user, session }) => {
-            // If modal was closed but user is not authenticated, reopen it
-            if (!user && !session) {
-              console.log("Sign-in modal was closed without authentication, reopening...");
-              setTimeout(() => {
-                Clerk.openSignIn();
-              }, 100);
+          // More robust handling for the sign-in modal
+          let authCheckInterval;
+          
+          function checkAndReopenSignIn() {
+            if (!Clerk.user) {
+              console.log("No authenticated user detected, ensuring sign-in is open");
+              try {
+                Clerk.openSignIn({
+                  // Prevent modal from closing when clicking outside
+                  appearance: {
+                    elements: {
+                      rootBox: {
+                        boxShadow: '0px 0px 0px 9999px rgba(0, 0, 0, 0.8)'
+                      },
+                      card: {
+                        boxShadow: '0px 0px 30px rgba(0, 0, 0, 0.5)'
+                      }
+                    }
+                  }
+                });
+              } catch (e) {
+                console.error("Error opening sign-in:", e);
+              }
+            } else {
+              // User is authenticated, clear the interval
+              if (authCheckInterval) {
+                clearInterval(authCheckInterval);
+                authCheckInterval = null;
+              }
             }
-          });
-
+          }
+          
+          // Start checking auth status periodically
+          authCheckInterval = setInterval(checkAndReopenSignIn, 1000);
+          
           // When the webchat is ready, check if the user is authenticated
           window.botpress.on("webchat:ready", function (error) {
             if (error && Object.keys(error).length > 0) {
