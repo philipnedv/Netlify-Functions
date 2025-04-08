@@ -106,12 +106,10 @@
         display: none;
       }
       
-      /* Removing all custom Clerk modal styles */
-      /* Let Clerk use its default styling */
     </style>
   </head>
   <body>
-    <!-- Add loading spinner -->
+    <!-- Add loading spinner - removed 'hidden' class to make it visible by default -->
     <div id="loading-spinner" class="loading-container">
       <div class="spinner"></div>
     </div>
@@ -122,12 +120,10 @@
         console.log("After inject.js load, window.botpress:", window.botpress);
 
         window.addEventListener("load", async function () {
-          // Show loading spinner while Clerk loads
+          // Loading spinner is now visible by default
           const loadingSpinner = document.getElementById('loading-spinner');
           
-          // Ensure spinner is visible
-          loadingSpinner.classList.remove('hidden');
-          console.log("Loading spinner displayed");
+          console.log("Loading spinner should be visible");
           
           // Wait for ClerkJS to load so that the user data is available
           try {
