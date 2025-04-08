@@ -113,46 +113,22 @@
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        background-color: rgba(0, 0, 0, 0.6) !important;
+        background-color: rgba(0, 0, 0, 0.7) !important;
         position: fixed !important;
         top: 0 !important;
         left: 0 !important;
         margin: 0 !important;
         padding: 0 !important;
         z-index: 10001 !important;
+        transition: none !important; /* Prevent animation */
       }
       
-      /* Make the modal card and all its components consistent */
-      .cl-card, 
-      .cl-signIn-start, 
-      .cl-signUp-start,
-      .cl-socialButtonsBlockButton,
-      .cl-dividerText,
-      .cl-formButtonPrimary,
-      .cl-footerActionLink,
-      .cl-footer {
-        border-radius: 8px !important;
+      /* Make the modal card larger and more centered */
+      .cl-card {
         max-width: 450px !important;
-        width: 100% !important;
-        margin: 0 auto !important;
-      }
-      
-      /* Fix the footer specifically */
-      .cl-footer {
-        background-color: white !important;
-        border-top: 1px solid #f0f0f0 !important;
-        border-radius: 0 0 8px 8px !important;
-        overflow: hidden !important;
-        width: 100% !important;
-        margin: 0 !important;
-        padding: 12px !important;
-      }
-      
-      /* Ensure the entire card container has proper styling */
-      .cl-formContainer {
-        overflow: hidden !important;
-        border-radius: 8px !important;
+        width: 90% !important;
         box-shadow: 0 0 30px rgba(0, 0, 0, 0.5) !important;
+        transition: none !important; /* Prevent animation */
       }
       
       /* Ensure the modal backdrop covers everything */
@@ -160,6 +136,7 @@
         opacity: 0.8 !important;
         width: 100vw !important;
         height: 100vh !important;
+        transition: none !important; /* Prevent animation */
       }
     </style>
   </head>
