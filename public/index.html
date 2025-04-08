@@ -129,6 +129,17 @@
           // Hide loading spinner after Clerk loads
           loadingSpinner.classList.add('hidden');
 
+          // Add listener for when the Clerk modal is closed
+          Clerk.addListener(({ user, session }) => {
+            // If modal was closed but user is not authenticated, reopen it
+            if (!user && !session) {
+              console.log("Sign-in modal was closed without authentication, reopening...");
+              setTimeout(() => {
+                Clerk.openSignIn();
+              }, 100);
+            }
+          });
+
           // When the webchat is ready, check if the user is authenticated
           window.botpress.on("webchat:ready", function (error) {
             if (error && Object.keys(error).length > 0) {
