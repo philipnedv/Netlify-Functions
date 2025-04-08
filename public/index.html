@@ -128,21 +128,7 @@
           
           // Wait for ClerkJS to load so that the user data is available
           try {
-            await Clerk.load({
-              // Configure Clerk to prevent modal from closing when clicking outside
-              appearance: {
-                layout: {
-                  showOptionalFields: true,
-                  socialButtonsPlacement: 'bottom'
-                },
-                elements: {
-                  // Make the overlay non-interactive to prevent clicks outside
-                  modalBackdrop: {
-                    pointerEvents: 'none'
-                  }
-                }
-              }
-            });
+            await Clerk.load();
             console.log("ClerkJS is loaded");
             
             // Hide loading spinner after Clerk loads
@@ -160,19 +146,8 @@
             if (!Clerk.user) {
               console.log("No authenticated user detected, ensuring sign-in is open");
               try {
-                Clerk.openSignIn({
-                  // Prevent modal from closing when clicking outside
-                  appearance: {
-                    elements: {
-                      rootBox: {
-                        boxShadow: '0px 0px 0px 9999px rgba(0, 0, 0, 0.8)'
-                      },
-                      card: {
-                        boxShadow: '0px 0px 30px rgba(0, 0, 0, 0.5)'
-                      }
-                    }
-                  }
-                });
+                // Open sign-in with default settings (fully interactive)
+                Clerk.openSignIn();
               } catch (e) {
                 console.error("Error opening sign-in:", e);
               }
