@@ -106,51 +106,8 @@
         display: none;
       }
       
-      /* Custom styles for Clerk modal to make it take up the entire viewport */
-      .cl-rootBox {
-        width: 100vw !important;
-        height: 100vh !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        background-color: rgba(0, 0, 0, 0.7) !important;
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        z-index: 10001 !important;
-        transition: none !important; /* Prevent animation */
-        animation: none !important; /* Disable any animations */
-        opacity: 1 !important; /* Ensure it's fully visible immediately */
-      }
-      
-      /* Make the modal card larger and more centered */
-      .cl-card {
-        max-width: 450px !important;
-        width: 90% !important;
-        box-shadow: 0 0 30px rgba(0, 0, 0, 0.5) !important;
-        transition: none !important; /* Prevent animation */
-        animation: none !important; /* Disable any animations */
-        transform: none !important; /* Prevent any transform animations */
-        opacity: 1 !important; /* Ensure it's fully visible immediately */
-      }
-      
-      /* Ensure the modal backdrop covers everything */
-      .cl-modalBackdrop {
-        opacity: 0.8 !important;
-        width: 100vw !important;
-        height: 100vh !important;
-        transition: none !important; /* Prevent animation */
-        animation: none !important; /* Disable any animations */
-      }
-      
-      /* Additional styles to prevent any Clerk animations */
-      .cl-component, .cl-modal {
-        transition: none !important;
-        animation: none !important;
-        transform: none !important;
-      }
+      /* Removing all custom Clerk modal styles */
+      /* Let Clerk use its default styling */
     </style>
   </head>
   <body>
