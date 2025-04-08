@@ -141,18 +141,30 @@
 
           // More robust handling for the sign-in modal
           let authCheckInterval;
+          let signInAttemptInProgress = false;
           
           function checkAndReopenSignIn() {
             if (!Clerk.user) {
-              console.log("No authenticated user detected, ensuring sign-in is open");
-              try {
-                // Open sign-in with default settings (fully interactive)
-                Clerk.openSignIn();
-              } catch (e) {
-                console.error("Error opening sign-in:", e);
+              // Check if there's an active sign-in attempt by looking for Clerk modal elements
+              const clerkModal = document.querySelector('.cl-rootBox');
+              
+              if (!clerkModal) {
+                console.log("No sign-in modal detected, reopening sign-in...");
+                signInAttemptInProgress = false;
+                try {
+                  // Open sign-in with default settings
+                  Clerk.openSignIn();
+                } catch (e) {
+                  console.error("Error opening sign-in:", e);
+                }
+              } else {
+                // Modal is present, don't interfere
+                console.log("Sign-in modal is already open, not interfering");
+                signInAttemptInProgress = true;
               }
             } else {
               // User is authenticated, clear the interval
+              console.log("User is authenticated, clearing check interval");
               if (authCheckInterval) {
                 clearInterval(authCheckInterval);
                 authCheckInterval = null;
@@ -160,8 +172,8 @@
             }
           }
           
-          // Start checking auth status periodically
-          authCheckInterval = setInterval(checkAndReopenSignIn, 1000);
+          // Start checking auth status periodically, but less frequently to avoid disruption
+          authCheckInterval = setInterval(checkAndReopenSignIn, 2000);
           
           // When the webchat is ready, check if the user is authenticated
           window.botpress.on("webchat:ready", function (error) {
