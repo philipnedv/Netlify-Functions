@@ -121,6 +121,8 @@
         padding: 0 !important;
         z-index: 10001 !important;
         transition: none !important; /* Prevent animation */
+        animation: none !important; /* Disable any animations */
+        opacity: 1 !important; /* Ensure it's fully visible immediately */
       }
       
       /* Make the modal card larger and more centered */
@@ -129,6 +131,9 @@
         width: 90% !important;
         box-shadow: 0 0 30px rgba(0, 0, 0, 0.5) !important;
         transition: none !important; /* Prevent animation */
+        animation: none !important; /* Disable any animations */
+        transform: none !important; /* Prevent any transform animations */
+        opacity: 1 !important; /* Ensure it's fully visible immediately */
       }
       
       /* Ensure the modal backdrop covers everything */
@@ -137,6 +142,14 @@
         width: 100vw !important;
         height: 100vh !important;
         transition: none !important; /* Prevent animation */
+        animation: none !important; /* Disable any animations */
+      }
+      
+      /* Additional styles to prevent any Clerk animations */
+      .cl-component, .cl-modal {
+        transition: none !important;
+        animation: none !important;
+        transform: none !important;
       }
     </style>
   </head>
