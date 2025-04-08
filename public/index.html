@@ -130,6 +130,9 @@
             await Clerk.load();
             console.log("ClerkJS is loaded");
             
+            // Add artificial delay to test spinner visibility
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
             // Hide loading spinner after Clerk loads
             loadingSpinner.classList.add('hidden');
           } catch (error) {
