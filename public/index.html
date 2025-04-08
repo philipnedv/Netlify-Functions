@@ -105,6 +105,36 @@
       .hidden {
         display: none;
       }
+      
+      /* Custom styles for Clerk modal to make it take up the entire viewport */
+      .cl-rootBox {
+        width: 100vw !important;
+        height: 100vh !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background-color: rgba(0, 0, 0, 0.8) !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        z-index: 10001 !important;
+      }
+      
+      /* Make the modal card larger and more centered */
+      .cl-card {
+        max-width: 450px !important;
+        width: 90% !important;
+        box-shadow: 0 0 30px rgba(0, 0, 0, 0.5) !important;
+      }
+      
+      /* Ensure the modal backdrop covers everything */
+      .cl-modalBackdrop {
+        opacity: 1 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+      }
     </style>
   </head>
   <body>
