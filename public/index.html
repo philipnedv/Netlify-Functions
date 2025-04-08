@@ -105,52 +105,55 @@
       .hidden {
         display: none;
       }
-      
+      /* MODAL STYLES */
       /* Make the modal container take up the entire viewport */
-      .cl-rootBox {
-        width: 100vw !important;
-        height: 100vh !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        background-color: rgba(0, 0, 0, 1) !important;  /* fully black backdrop */
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        z-index: 10001 !important;
-        transition: none !important;
-        animation: none !important;
-        opacity: 1 !important;
-      }
+      /*.cl-rootBox { 
+      /*  width: 100vw !important;*/
+      /*  height: 100vh !important;
+      /*  display: flex !important;*/
+       /* align-items: center !important;
+      /*  justify-content: center !important;
+      /*  background-color: rgba(0, 0, 0, 1) !important;  /* fully black backdrop */
+      /*  position: fixed !important;
+      /*  top: 0 !important;
+      /*  left: 0 !important;
+      /*  margin: 0 !important;*/
+      /*  padding: 0 !important*; */
+      /*  z-index: 10001 !important;*/
+      /*  transition: none !important;*/
+      /*  animation: none !important;*/
+      /*  opacity: 1 !important;*/
+      /*}*/
       
       /* Force the modal card to occupy the full viewport too,
          ensuring consistent alignment and preventing re-layout */
       .cl-card {
-        width: 100vw !important;
-        height: 100vh !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        background-color: #fff !important;  /* white background for content */
-        margin: 0 !important;
-        padding: 0 !important;
-        box-shadow: 0 0 30px rgba(0, 0, 0, 0.5) !important;
-        transition: none !important;
-        animation: none !important;
-        transform: none !important;
-        opacity: 1 !important;
+        max-width: 450px !important;
+        width: 100% !important;
+        max-height: 90vh !important;
+        margin: auto !important;
+
+      /*  display: flex !important;
+      /*  align-items: center !important;
+      /*  justify-content: center !important;*/
+      /*  background-color: #fff !important;*/  /* white background for content */
+      /*  margin: 0 !important;*/
+      /*  padding: 0 !important;*/
+      /*  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5) !important;*/
+      /*  transition: none !important;*/
+      /*  animation: none !important;*/
+      /*  transform: none !important;*/
+      /*  opacity: 1 !important;*/
       }
       
       /* Ensure the modal backdrop (if separate) covers the full viewport */
-      .cl-modalBackdrop {
+      /*.cl-modalBackdrop {
         width: 100vw !important;
         height: 100vh !important;
         opacity: 1 !important;
         transition: none !important;
         animation: none !important;
-      }
+      }*/
 
     </style>
   </head>
