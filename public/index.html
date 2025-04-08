@@ -122,23 +122,37 @@
         z-index: 10001 !important;
       }
       
-      /* Make the modal card larger and more centered with consistent corners */
-      .cl-card {
-        max-width: 450px !important;
-        width: 90% !important;
-        box-shadow: 0 0 30px rgba(0, 0, 0, 0.5) !important;
-        background-color: white !important;
+      /* Make the modal card and all its components consistent */
+      .cl-card, 
+      .cl-signIn-start, 
+      .cl-signUp-start,
+      .cl-socialButtonsBlockButton,
+      .cl-dividerText,
+      .cl-formButtonPrimary,
+      .cl-footerActionLink,
+      .cl-footer {
         border-radius: 8px !important;
-        overflow: hidden !important; /* Ensure content doesn't overflow */
-        margin: 0 auto !important; /* Center horizontally */
+        max-width: 450px !important;
+        width: 100% !important;
+        margin: 0 auto !important;
       }
       
-      /* Fix any potential footer misalignment */
-      .cl-footer, .cl-footerAction, .cl-footerActionLink {
+      /* Fix the footer specifically */
+      .cl-footer {
+        background-color: white !important;
+        border-top: 1px solid #f0f0f0 !important;
+        border-radius: 0 0 8px 8px !important;
+        overflow: hidden !important;
         width: 100% !important;
         margin: 0 !important;
-        padding: 0 !important;
-        border-radius: 0 0 8px 8px !important; /* Match bottom corners */
+        padding: 12px !important;
+      }
+      
+      /* Ensure the entire card container has proper styling */
+      .cl-formContainer {
+        overflow: hidden !important;
+        border-radius: 8px !important;
+        box-shadow: 0 0 30px rgba(0, 0, 0, 0.5) !important;
       }
       
       /* Ensure the modal backdrop covers everything */
