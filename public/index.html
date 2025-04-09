@@ -120,6 +120,9 @@
         overflow: hidden !important;
         background-color: rgb(21, 21, 21) !important;
         padding-bottom: 10vh !important; /* This shifts content up by 10% from center */
+        visibility: hidden; /* Start hidden but keep layout intact */
+        opacity: 0; /* Start transparent */
+        transition: opacity 0.5s ease, visibility 0.5s ease !important; /* Smooth fade in */
       }
       
       /* Force the modal card to occupy the full viewport too,
@@ -174,6 +177,26 @@
             
             // Hide loading spinner after Clerk loads
             loadingSpinner.classList.add('hidden');
+            
+            // Create a more robust function to handle modal visibility
+            const showClerkModal = () => {
+              // Find any Clerk modal
+              const clerkModals = document.querySelectorAll('.cl-rootBox');
+              if (clerkModals.length > 0) {
+                console.log("Found Clerk modal, making it visible");
+                clerkModals.forEach(modal => {
+                  modal.style.visibility = 'visible';
+                  modal.style.opacity = '1';
+                });
+              } else {
+                console.log("No Clerk modal found yet, will try again");
+                // If no modal found yet, try again in a moment
+                setTimeout(showClerkModal, 100);
+              }
+            };
+            
+            // Start the process after a short delay to ensure DOM is ready
+            setTimeout(showClerkModal, 300);
           } catch (error) {
             console.error("Error loading Clerk:", error);
             // Still hide spinner if Clerk fails to load
