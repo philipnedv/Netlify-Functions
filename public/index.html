@@ -115,7 +115,7 @@
          top: 0 !important; 
          left: 0 !important; 
          overflow: hidden !important;
-         margin-top: 10vh!important; 
+        /* margin-top: 13vh!important; */
          animation: fadeIn 1s ease-in-out !important; /* Simple fade-in animation */
       }
       
@@ -263,35 +263,10 @@
               const clerkModals = document.querySelectorAll('.cl-rootBox');
               if (clerkModals.length > 0) {
                 console.log("Found Clerk modal, making it visible");
-                
-                // Immediately hide the modal before creating the overlay
                 clerkModals.forEach(modal => {
-                  modal.style.visibility = 'hidden';
-                  modal.style.opacity = '0';
+                  modal.style.visibility = 'visible';
+                  modal.style.opacity = '1';
                 });
-                
-                // Create and show modal loading overlay
-                const modalOverlay = document.createElement('div');
-                modalOverlay.className = 'modal-loading-overlay';
-                const modalSpinner = document.createElement('div');
-                modalSpinner.className = 'modal-spinner';
-                modalOverlay.appendChild(modalSpinner);
-                document.body.appendChild(modalOverlay);
-                
-                // After a short delay, show the modal and remove the overlay
-                setTimeout(() => {
-                  clerkModals.forEach(modal => {
-                    modal.style.visibility = 'visible';
-                    modal.style.opacity = '1';
-                  });
-                  
-                  // Remove the loading overlay
-                  setTimeout(() => {
-                    if (modalOverlay && modalOverlay.parentNode) {
-                      modalOverlay.parentNode.removeChild(modalOverlay);
-                    }
-                  }, 100); // Small additional delay for smooth transition
-                }, 250); // Increased delay before showing the modal
               } else {
                 console.log("No Clerk modal found yet, will try again");
                 // If no modal found yet, try again in a moment
