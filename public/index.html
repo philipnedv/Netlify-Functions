@@ -111,23 +111,27 @@
       .cl-rootBox {
          display: flex !important; 
          align-items: center !important; 
-        /* justify-content: center !important; */
-        /* height: 100vh !important; */
          width: 100% !important; 
          top: 0 !important; 
          left: 0 !important; 
-         overflow: hidden !important; 
-         padding-top: 15vh !important;
-        /* position: fixed !important; /* shifts it right */
-        /* background-color: rgb(21, 21, 21) !important; 
-        /* padding-bottom: 10vh !important;  /* This shifts content up by 10% from center */
-        /* visibility: hidden; */ /* Start hidden but keep layout intact */
-        /* opacity: 0;  *//* Start transparent */
-        /* transition: opacity 2s ease, visibility 2s ease !important;  /* Smooth fade in */
+         overflow: hidden !important;
+         margin-top: 13vh!important; 
+         animation: fadeIn 1s ease-in-out !important; /* Simple fade-in animation */
       }
       
-      /* Force the modal card to occupy the full viewport too,
-         ensuring consistent alignment and preventing re-layout */
+      /* Define the fade-in animation */
+      @keyframes fadeIn {
+        0% { opacity: 0; }
+        100% { opacity: 1; }
+      }
+      
+      /* Only apply pointer-events: none to the backdrop specifically */
+      .cl-modalBackdrop {
+        background-color: rgb(21, 21, 21) !important;
+        pointer-events: none !important; /* Prevent clicks on just the backdrop */
+      }
+      
+      /* Make sure the card and all its children receive clicks */
       .cl-card {
         max-width: 450px !important;
         width: 100% !important;
@@ -137,6 +141,54 @@
         position: relative !important;
         top: 0 !important;
         transform: none !important;
+        pointer-events: auto !important; /* This makes the card itself still capture clicks */
+        z-index: 10001 !important; /* Ensure it's above other elements */
+      }
+      
+      /* Ensure all interactive elements within the card can be clicked */
+      .cl-card a, 
+      .cl-card button,
+      .cl-card input,
+      .cl-card .cl-footerActionLink,
+      .cl-card .cl-formButtonPrimary,
+      .cl-card .cl-socialButtonsIconButton,
+      .cl-footer,
+      .cl-footerAction,
+      .cl-footerActionLink,
+      .cl-footerText {
+        pointer-events: auto !important;
+        cursor: pointer !important;
+        z-index: 10002 !important; /* Higher z-index than the card */
+      }
+      
+      /* Specifically target the footer area */
+      .cl-footer {
+        position: relative !important;
+        z-index: 10002 !important;
+      }
+      /* Hide the close button */
+      .cl-modalCloseButton {
+        display: none !important;
+      }
+      
+      /* Ensure the modal backdrop (if separate) covers the full viewport */
+      .cl-modalBackdrop {
+        background-color: rgb(21, 21, 21) !important;
+        pointer-events: none !important; /* Prevent clicks on the backdrop */
+      }
+      
+      /* Make sure the card still receives clicks */
+      .cl-card {
+        max-width: 450px !important;
+        width: 100% !important;
+        max-height: 90vh !important;
+        margin: auto !important;
+        overflow: auto !important;
+        position: relative !important;
+        top: 0 !important;
+        transform: none !important;
+        pointer-events: auto !important; /* This makes the card itself still capture clicks */
+        z-index: 10001 !important; /* Ensure it's above other elements */
       }
       /* Hide the close button */
       .cl-modalCloseButton {
@@ -201,6 +253,46 @@
             
             // Start the process after a short delay to ensure DOM is ready
             setTimeout(showClerkModal, 300);
+            
+            // Add a MutationObserver to detect when the modal is removed and reopen it
+            const bodyObserver = new MutationObserver((mutations) => {
+              if (!Clerk.user) {
+                // Check if the modal was removed
+                const modalExists = document.querySelector('.cl-rootBox');
+                if (!modalExists) {
+                  console.log("Modal was removed, reopening sign-in");
+                  try {
+                    // Use Clerk's options to prevent closing on outside click
+                    Clerk.openSignIn({
+                      appearance: {
+                        elements: {
+                          modalBackdrop: {
+                            pointerEvents: "none"
+                          },
+                          modalCloseButton: {
+                            display: "none"
+                          }
+                        }
+                      },
+                      signInUrl: window.location.href,
+                      afterSignInUrl: window.location.href,
+                      redirectUrl: window.location.href,
+                      // This is the key option to prevent closing on outside click
+                      unsafeMetadata: {
+                        preventCloseOnOutsideClick: true
+                      }
+                    });
+                    // Make sure it's visible
+                    setTimeout(showClerkModal, 100);
+                  } catch (e) {
+                    console.error("Error reopening sign-in:", e);
+                  }
+                }
+              }
+            });
+            
+            // Start observing the body for changes
+            bodyObserver.observe(document.body, { childList: true, subtree: true });
           } catch (error) {
             console.error("Error loading Clerk:", error);
             // Still hide spinner if Clerk fails to load
@@ -222,6 +314,22 @@
                 try {
                   // Open sign-in with default settings
                   Clerk.openSignIn();
+                  
+                  // Add a direct event listener to the document to prevent clicks from closing the modal
+                  setTimeout(() => {
+                    // First, remove any existing listener to avoid duplicates
+                    document.removeEventListener('click', preventModalClose, true);
+                    
+                    // Then add our new listener
+                    document.addEventListener('click', preventModalClose, true);
+                    
+                    // Also try to find and disable the close button
+                    const closeButton = document.querySelector('.cl-modalCloseButton');
+                    if (closeButton) {
+                      closeButton.style.display = 'none';
+                      closeButton.disabled = true;
+                    }
+                  }, 500);
                 } catch (e) {
                   console.error("Error opening sign-in:", e);
                 }
@@ -236,6 +344,30 @@
               if (authCheckInterval) {
                 clearInterval(authCheckInterval);
                 authCheckInterval = null;
+              }
+              // Remove our event listener when authenticated
+              document.removeEventListener('click', preventModalClose, true);
+            }
+          }
+          
+          // Function to prevent modal from closing on outside clicks
+          function preventModalClose(event) {
+            // Only run this if user is not authenticated
+            if (!Clerk.user) {
+              const modal = document.querySelector('.cl-card');
+              const footer = document.querySelector('.cl-footer');
+              const footerLink = document.querySelector('.cl-footerActionLink');
+              
+              // Check if the click target is the footer or a child of the footer
+              const isFooterClick = footer && (footer === event.target || footer.contains(event.target));
+              const isFooterLinkClick = footerLink && (footerLink === event.target || footerLink.contains(event.target));
+              
+              // If we clicked outside the modal card AND it's not a footer element
+              if (modal && !modal.contains(event.target) && !isFooterClick && !isFooterLinkClick) {
+                console.log("Prevented click outside modal from closing it");
+                event.stopPropagation();
+                event.preventDefault();
+                return false;
               }
             }
           }
