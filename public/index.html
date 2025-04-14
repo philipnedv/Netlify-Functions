@@ -479,14 +479,7 @@
 
           // Override the botpress open function to enforce our access logic.
           const originalBotpressOpen = window.botpress.open;
-          // Add a flag to track if we've shown the payment prompt in this session
-          let paymentPromptShown = false;
-          // Add a counter to track open calls
-          let openCallCount = 0;
           window.botpress.open = function () {
-            openCallCount++;
-            console.log(`botpress.open called (${openCallCount} times) from:`, new Error().stack);
-            
             // Retrieve the metadata from Clerk - check both public and unsafe metadata
             const publicMetadata = Clerk.user?.publicMetadata || {};
             const unsafeMetadata = Clerk.user?.unsafeMetadata || {};
@@ -507,34 +500,26 @@
             if (count >= 5 && !paid) {
               console.log("Usage limit exceeded. Showing payment prompt in bot...");
               
-              // Only send the event if we haven't shown the payment prompt yet
-              if (!paymentPromptShown) {
-                paymentPromptShown = true;
-                
-                // Instead of closing the bot and redirecting, we'll send an event to the bot
-                // to trigger a specific conversation flow explaining the payment requirement
-                setTimeout(() => {
-                  try {
-                    // Send a custom event to the bot to trigger the payment explanation flow
-                    window.botpress.sendEvent({ 
-                      type: 'show-payment-prompt',
-                      payload: { 
-                        count: count,
-                        userId: Clerk.user.id,
-                        userEmail: Clerk.user.emailAddresses && 
-                                  Clerk.user.emailAddresses.length > 0 ? 
-                                  Clerk.user.emailAddresses[0].emailAddress : null,
-                        eventId: Date.now() // Add a unique timestamp to identify each event
-                      }
-                    });
-                    console.log("Payment prompt event sent to bot");
-                  } catch (e) {
-                    console.error("Error sending payment prompt event:", e);
-                  }
-                }, 250); // Small delay to ensure bot is ready
-              } else {
-                console.log("Payment prompt already shown, not sending duplicate event");
-              }
+              // Instead of closing the bot and redirecting, we'll send an event to the bot
+              // to trigger a specific conversation flow explaining the payment requirement
+              setTimeout(() => {
+                try {
+                  // Send a custom event to the bot to trigger the payment explanation flow
+                  window.botpress.sendEvent({ 
+                    type: 'show-payment-prompt',
+                    payload: { 
+                      count: count,
+                      userId: Clerk.user.id,
+                      userEmail: Clerk.user.emailAddresses && 
+                                Clerk.user.emailAddresses.length > 0 ? 
+                                Clerk.user.emailAddresses[0].emailAddress : null
+                    }
+                  });
+                  console.log("Payment prompt event sent to bot");
+                } catch (e) {
+                  console.error("Error sending payment prompt event:", e);
+                }
+              }, 250); // Small delay to ensure bot is ready
               
               // Continue with the original open function to keep the bot open
               return originalBotpressOpen();
