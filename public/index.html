@@ -661,7 +661,7 @@
                                 // We don't need to send another payment prompt here
                                 // The window.botpress.open override will handle this when the bot reopens
                                 // Removing the duplicate event sending code:
-                                /*
+                                
                                 try {
                                   window.botpress.sendEvent({ 
                                     type: 'show-payment-prompt',
@@ -677,7 +677,7 @@
                                 } catch (e) {
                                   console.error("Error sending payment prompt event:", e);
                                 }
-                                */
+                                
                               }
                             })
                             .catch(error => {
