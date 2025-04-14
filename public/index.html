@@ -547,13 +547,10 @@
               console.log("Count is less than 5 (or not set), opening bot.");
               window.botpress.open();
             } else {
-              if (paid) {
-                console.log("Count is 5 or more and paid is true, opening bot.");
-                window.botpress.open();
-              } else {
-                console.log("Count is 5 or more and paid is not set, closing bot.");
-                window.botpress.close();
-              }
+              // Always open the bot, even for unpaid users with 5+ listings
+              // Our override of window.botpress.open will handle showing the payment prompt
+              console.log("Count is 5 or more, opening bot with appropriate flow.");
+              window.botpress.open();
             }
           }
 
@@ -618,9 +615,23 @@
                               
                               // Check if we need to trigger checkout flow
                               if (count >= 5 && !updatedUser.publicMetadata.paid) {
-                                console.log('Count exceeds limit, triggering checkout flow manually');
-                                // Manually trigger the checkout flow by calling open() which will run our override
-                                window.botpress.open();
+                                console.log('Count exceeds limit, triggering payment prompt');
+                                // Send the payment prompt event directly instead of closing/reopening
+                                try {
+                                  window.botpress.sendEvent({ 
+                                    type: 'show-payment-prompt',
+                                    payload: { 
+                                      count: count,
+                                      userId: Clerk.user.id,
+                                      userEmail: Clerk.user.emailAddresses && 
+                                                Clerk.user.emailAddresses.length > 0 ? 
+                                                Clerk.user.emailAddresses[0].emailAddress : null
+                                    }
+                                  });
+                                  console.log("Payment prompt event sent to bot");
+                                } catch (e) {
+                                  console.error("Error sending payment prompt event:", e);
+                                }
                               }
                             })
                             .catch(error => {
