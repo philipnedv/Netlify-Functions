@@ -481,7 +481,12 @@
           const originalBotpressOpen = window.botpress.open;
           // Add a flag to track if we've shown the payment prompt in this session
           let paymentPromptShown = false;
+          // Add a counter to track open calls
+          let openCallCount = 0;
           window.botpress.open = function () {
+            openCallCount++;
+            console.log(`botpress.open called (${openCallCount} times) from:`, new Error().stack);
+            
             // Retrieve the metadata from Clerk - check both public and unsafe metadata
             const publicMetadata = Clerk.user?.publicMetadata || {};
             const unsafeMetadata = Clerk.user?.unsafeMetadata || {};
@@ -518,7 +523,8 @@
                         userId: Clerk.user.id,
                         userEmail: Clerk.user.emailAddresses && 
                                   Clerk.user.emailAddresses.length > 0 ? 
-                                  Clerk.user.emailAddresses[0].emailAddress : null
+                                  Clerk.user.emailAddresses[0].emailAddress : null,
+                        eventId: Date.now() // Add a unique timestamp to identify each event
                       }
                     });
                     console.log("Payment prompt event sent to bot");
