@@ -583,7 +583,9 @@
                   console.log("Count is 5 or more and not paid, keeping bot open with payment prompt.");
                   window.botpress.open(); // Keep bot open
                   
-                  // Send payment prompt event
+                  // REMOVE THIS DUPLICATE EVENT - The event is already sent in the window.botpress.open override
+                  // We don't need to send it again here, which could cause multiple prompts
+                  /* 
                   setTimeout(() => {
                     try {
                       window.botpress.sendEvent({ 
@@ -601,6 +603,7 @@
                       console.error("Error sending payment prompt event:", e);
                     }
                   }, 1000);
+                  */
                 }
               }
             } catch (error) {
@@ -637,8 +640,11 @@
                               
                               // Check if we need to trigger checkout flow
                               if (count >= 5 && !updatedUser.publicMetadata.paid) {
-                                console.log('Count exceeds limit, triggering payment prompt');
-                                // Send the payment prompt event directly instead of closing/reopening
+                                console.log('Count exceeds limit, but not sending duplicate payment prompt');
+                                // We don't need to send another payment prompt here
+                                // The window.botpress.open override will handle this when the bot reopens
+                                // Removing the duplicate event sending code:
+                                /*
                                 try {
                                   window.botpress.sendEvent({ 
                                     type: 'show-payment-prompt',
@@ -654,6 +660,7 @@
                                 } catch (e) {
                                   console.error("Error sending payment prompt event:", e);
                                 }
+                                */
                               }
                             })
                             .catch(error => {
