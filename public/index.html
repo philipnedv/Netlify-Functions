@@ -519,7 +519,7 @@
                 } catch (e) {
                   console.error("Error sending payment prompt event:", e);
                 }
-              }, 1000); // Small delay to ensure bot is ready
+              }, 250); // Small delay to ensure bot is ready
               
               // Continue with the original open function to keep the bot open
               return originalBotpressOpen();
@@ -575,10 +575,32 @@
               } else if (count < 5) {
                 window.botpress.open();
               } else {
+                // Always keep the bot open and show payment prompt if needed
                 if (paid) {
+                  console.log("Count is 5 or more and paid is true, opening bot.");
                   window.botpress.open();
                 } else {
-                  window.botpress.close();
+                  console.log("Count is 5 or more and not paid, keeping bot open with payment prompt.");
+                  window.botpress.open(); // Keep bot open
+                  
+                  // Send payment prompt event
+                  setTimeout(() => {
+                    try {
+                      window.botpress.sendEvent({ 
+                        type: 'show-payment-prompt',
+                        payload: { 
+                          count: count,
+                          userId: user.id,
+                          userEmail: user.emailAddresses && 
+                                    user.emailAddresses.length > 0 ? 
+                                    user.emailAddresses[0].emailAddress : null
+                        }
+                      });
+                      console.log("Payment prompt event sent to bot from user update listener");
+                    } catch (e) {
+                      console.error("Error sending payment prompt event:", e);
+                    }
+                  }, 1000);
                 }
               }
             } catch (error) {
