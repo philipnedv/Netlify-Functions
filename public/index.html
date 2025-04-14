@@ -438,7 +438,7 @@
 
           console.log("Initializing Botpress with configuration...");
           window.botpress.init({
-            "botId": "e28b7720-ebbb-4a11-89bb-47f55cd05c45",
+            "botId": "e5ed0d86-a95f-477d-bfd6-75acc6dd7f35",
             "configuration": {
               "composerPlaceholder": "Ready to list?",
               "botName": "Lazy Lister",
@@ -473,7 +473,7 @@
               "additionalStylesheetUrl": "https://files.bpcontent.cloud/2025/03/02/13/20250302133842-6MYMQOH2.css",
               "allowFileUpload": true
             },
-            "clientId": "0a4ade33-563b-4f99-b89c-44328568df81"
+            "clientId": "e14fa388-d38e-45ee-bc41-d9bddbda5de4"
           });
           console.log("Botpress initialization completed.");
 
@@ -498,118 +498,31 @@
             
             // If count is 5 or more and user isn't marked as paid, initiate checkout instead of opening the bot.
             if (count >= 5 && !paid) {
-              console.log("Usage limit exceeded. Initiating checkout flow...");
-              window.botpress.close();
-              // Show loading spinner during checkout process
-              document.getElementById('loading-spinner').classList.remove('hidden');
+              console.log("Usage limit exceeded. Showing payment prompt in bot...");
               
-              // Get user email from Clerk
-              const userEmail = Clerk.user.emailAddresses && 
-                               Clerk.user.emailAddresses.length > 0 ? 
-                               Clerk.user.emailAddresses[0].emailAddress : null;
-              
-              // Rest of the checkout code remains the same
-              const sessionId = `${Clerk.user.id}_${Math.floor(Date.now() / 60000)}`; // Changes every minute
-              
-              // Create a more robust fetch with timeout and retry logic
-              const fetchWithRetry = async (url, options, retries = 3, timeout = 10000) => {
-                return new Promise((resolve, reject) => {
-                  // Set up timeout
-                  const timeoutId = setTimeout(() => {
-                    console.log(`Fetch timeout after ${timeout}ms`);
-                    if (retries > 0) {
-                      console.log(`Retrying... (${retries} attempts left)`);
-                      resolve(fetchWithRetry(url, options, retries - 1, timeout));
-                    } else {
-                      reject(new Error(`Fetch timed out after ${timeout}ms`));
-                    }
-                  }, timeout);
-                  
-                  fetch(url, options)
-                    .then(response => {
-                      clearTimeout(timeoutId);
-                      resolve(response);
-                    })
-                    .catch(error => {
-                      clearTimeout(timeoutId);
-                      if (retries > 0) {
-                        console.log(`Fetch error: ${error.message}. Retrying... (${retries} attempts left)`);
-                        resolve(fetchWithRetry(url, options, retries - 1, timeout));
-                      } else {
-                        reject(error);
-                      }
-                    });
-                });
-              };
-              
-              // Use our enhanced fetch function
-              fetchWithRetry('/.netlify/functions/create-checkout-session', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                  clerkUserId: Clerk.user.id,
-                  userEmail: userEmail,
-                  sessionId: sessionId
-                })
-              })
-                .then(response => {
-                  console.log("Checkout response status:", response.status);
-                  // Clone the response so we can log it and still use it
-                  return response.clone().text().then(text => {
-                    try {
-                      console.log("Raw response:", text);
-                      // Now parse the original response as JSON
-                      return response.json();
-                    } catch (e) {
-                      console.error("Error parsing response as JSON:", e);
-                      throw new Error(`Invalid JSON response: ${text}`);
+              // Instead of closing the bot and redirecting, we'll send an event to the bot
+              // to trigger a specific conversation flow explaining the payment requirement
+              setTimeout(() => {
+                try {
+                  // Send a custom event to the bot to trigger the payment explanation flow
+                  window.botpress.sendEvent({ 
+                    type: 'show-payment-prompt',
+                    payload: { 
+                      count: count,
+                      userId: Clerk.user.id,
+                      userEmail: Clerk.user.emailAddresses && 
+                                Clerk.user.emailAddresses.length > 0 ? 
+                                Clerk.user.emailAddresses[0].emailAddress : null
                     }
                   });
-                })
-                .then(data => {
-                  console.log("Checkout session created:", data);
-                  
-                  // Check if we have a valid session with a URL
-                  if (!data || !data.id) {
-                    throw new Error("Invalid checkout session data received");
-                  }
-                  
-                  // If the backend returns the URL directly
-                  if (data.url) {
-                    console.log("Redirecting to checkout URL:", data.url);
-                    
-                    // Try a direct window.location approach with a backup
-                    try {
-                      // First attempt - direct navigation
-                      window.location.href = data.url;
-                      
-                      // Set a backup in case the first attempt doesn't work
-                      setTimeout(() => {
-                        console.log("Backup redirect attempt");
-                        window.open(data.url, '_self');
-                      }, 1000);
-                    } catch (e) {
-                      console.error("Error during redirect:", e);
-                      // Last resort - try to open in a new tab
-                      window.open(data.url, '_blank');
-                    }
-                  } else {
-                    // Fallback to the old method if needed
-                    console.log("Using Stripe.js redirect with session ID:", data.id);
-                    const stripeKey = 'pk_test_51QxZsOH5gbEV3WXhmvSAIpA6mw9sOgdz0B0WdT7ylBX7mr3t7QLD0teqeEqsrwkV2QUDfpouEVafD00zl2mNfV0G00Jyb8bBzD';
-                    const stripe = Stripe(stripeKey);
-                    
-                    return stripe.redirectToCheckout({ sessionId: data.id });
-                  }
-                })
-                .catch(error => {
-                  console.error('Error initiating checkout:', error);
-                  // Hide loading spinner in case of error
-                  document.getElementById('loading-spinner').classList.add('hidden');
-                  // Show user-friendly error message with more details
-                  alert(`Unable to process your payment request: ${error.message}. Please try again later.`);
-                });
-              return; // Prevent normal bot open
+                  console.log("Payment prompt event sent to bot");
+                } catch (e) {
+                  console.error("Error sending payment prompt event:", e);
+                }
+              }, 1000); // Small delay to ensure bot is ready
+              
+              // Continue with the original open function to keep the bot open
+              return originalBotpressOpen();
             }
             // Otherwise, call the original open function.
             return originalBotpressOpen();
@@ -676,52 +589,131 @@
             }
           });
 
-          // Register the custom event listener for updating usage count in unsafe metadata.
-          window.botpress.on('customEvent', (event) => {
-            console.log(event);
-            let count = Clerk.user.unsafeMetadata.count || 0;
-            count++;
-            
-            Clerk.user.update({
-              unsafeMetadata: {
-                count: count
-              }
-            })
-            .then((updatedUser) => {
-              console.log('User metadata updated:', updatedUser.unsafeMetadata.count);
-              
-              // Function to attempt user reload with retries
-              const attemptUserReload = (attempts = 0, maxAttempts = 3) => {
-                setTimeout(() => {
-                  console.log(`Attempting to reload user (attempt ${attempts + 1})`);
-                  Clerk.user.reload()
-                    .then(() => {
-                      console.log('User reloaded, current count:', Clerk.user.unsafeMetadata.count);
+          // Register the custom event listener for handling different event types from the bot
+                window.botpress.on('customEvent', (event) => {
+                  console.log("Received custom event:", event);
+                  
+                  // Check the event type to determine the action
+                  if (event.type === 'listingCountUpdate') {
+                    // Handle listing count update
+                    console.log("Processing listing count update event");
+                    let count = Clerk.user.unsafeMetadata.count || 0;
+                    count++;
+                    
+                    Clerk.user.update({
+                      unsafeMetadata: {
+                        count: count
+                      }
+                    })
+                    .then((updatedUser) => {
+                      console.log('User metadata updated:', updatedUser.unsafeMetadata.count);
                       
-                      // Check if we need to trigger checkout flow
-                      if (count >= 5 && !updatedUser.publicMetadata.paid) {
-                        console.log('Count exceeds limit, triggering checkout flow manually');
-                        // Manually trigger the checkout flow by calling open() which will run our override
-                        window.botpress.open();
+                      // Function to attempt user reload with retries
+                      const attemptUserReload = (attempts = 0, maxAttempts = 3) => {
+                        setTimeout(() => {
+                          console.log(`Attempting to reload user (attempt ${attempts + 1})`);
+                          Clerk.user.reload()
+                            .then(() => {
+                              console.log('User reloaded, current count:', Clerk.user.unsafeMetadata.count);
+                              
+                              // Check if we need to trigger checkout flow
+                              if (count >= 5 && !updatedUser.publicMetadata.paid) {
+                                console.log('Count exceeds limit, triggering checkout flow manually');
+                                // Manually trigger the checkout flow by calling open() which will run our override
+                                window.botpress.open();
+                              }
+                            })
+                            .catch(error => {
+                              console.error("Error reloading user:", error);
+                              if (attempts < maxAttempts) {
+                                console.log(`Retrying user reload (${maxAttempts - attempts} attempts left)`);
+                                attemptUserReload(attempts + 1, maxAttempts);
+                              }
+                            });
+                        }, 150); // Small initial delay of 150ms
+                      };
+                      
+                      // Start the attempt process
+                      attemptUserReload();
+                    })
+                    .catch((error) => {
+                      console.error('Error updating user metadata:', error);
+                    });
+                  } 
+                  else if (event.type === 'initiateCheckout') {
+                    // Handle checkout initiation
+                    console.log("Processing checkout initiation event");
+                    
+                    // Get user email from Clerk
+                    const userEmail = Clerk.user.emailAddresses && 
+                                  Clerk.user.emailAddresses.length > 0 ? 
+                                  Clerk.user.emailAddresses[0].emailAddress : null;
+                    
+                    // Generate a session ID for tracking
+                    const sessionId = Math.random().toString(36).substring(2, 15);
+                    
+                    // Define a fetch with retry function
+                    const fetchWithRetry = (url, options, maxRetries = 3, delay = 1000) => {
+                      return new Promise((resolve, reject) => {
+                        const attempt = (retryCount) => {
+                          fetch(url, options)
+                            .then(response => {
+                              resolve(response);
+                            })
+                            .catch(error => {
+                              if (retryCount < maxRetries) {
+                                console.log(`Retry attempt ${retryCount + 1} after ${delay}ms`);
+                                setTimeout(() => attempt(retryCount + 1), delay);
+                              } else {
+                                reject(error);
+                              }
+                            });
+                        };
+                        attempt(0);
+                      });
+                    };
+                    
+                    // Call the checkout endpoint
+                    fetchWithRetry('/.netlify/functions/create-checkout-session', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ 
+                        clerkUserId: Clerk.user.id,
+                        userEmail: userEmail,
+                        sessionId: sessionId
+                      })
+                    })
+                    .then(response => {
+                      console.log("Checkout response status:", response.status);
+                      // Clone the response so we can log it and still use it
+                      return response.clone().text().then(text => {
+                        try {
+                          console.log("Raw response:", text);
+                          // Now parse the original response as JSON
+                          return response.json();
+                        } catch (e) {
+                          console.error("Error parsing response as JSON:", e);
+                          throw new Error(`Invalid JSON response: ${text}`);
+                        }
+                      });
+                    })
+                    .then(data => {
+                      console.log("Checkout session created:", data);
+                      // Redirect to the checkout URL
+                      if (data && data.url) {
+                        window.location.href = data.url;
+                      } else {
+                        console.error("No checkout URL in response");
                       }
                     })
                     .catch(error => {
-                      console.error("Error reloading user:", error);
-                      if (attempts < maxAttempts) {
-                        console.log(`Retrying user reload (${maxAttempts - attempts} attempts left)`);
-                        attemptUserReload(attempts + 1, maxAttempts);
-                      }
+                      console.error("Error creating checkout session:", error);
                     });
-                }, 150); // Small initial delay of 150ms
-              };
-              
-              // Start the attempt process
-              attemptUserReload();
-            })
-            .catch((error) => {
-              console.error('Error updating user metadata:', error);
-            });
-          });
+                  }
+                  else {
+                    console.log("Unknown event type:", event.type);
+                  }
+                });
         });
       </script>
     </div>
