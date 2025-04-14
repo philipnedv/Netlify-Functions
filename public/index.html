@@ -498,48 +498,11 @@
             
             // If count is 5 or more and user isn't marked as paid, initiate checkout instead of opening the bot.
             if (count >= 5 && !paid) {
-              console.log("Usage limit exceeded. Showing payment prompt in bot...");
+              console.log("Usage limit exceeded. Opening bot without payment prompt.");
               
-              // Store the original function temporarily
-              const originalSendEvent = window.botpress.sendEvent;
-              
-              // Create a one-time event sender that will restore itself after use
-              window.botpress.sendEvent = function(event) {
-                // If this is our payment prompt event, restore the original function immediately after sending
-                if (event.type === 'show-payment-prompt') {
-                  console.log("Sending payment prompt event (one-time override)");
-                  // Restore original function immediately
-                  window.botpress.sendEvent = originalSendEvent;
-                }
-                // Call the original function with the event
-                return originalSendEvent.call(this, event);
-              };
-              
-              // Continue with the original open function to keep the bot open
-              const result = originalBotpressOpen();
-              
-              // Send the payment prompt event after a short delay
-              setTimeout(() => {
-                try {
-                  // This will use our modified sendEvent function which self-destructs after use
-                  window.botpress.sendEvent({ 
-                    type: 'show-payment-prompt',
-                    payload: { 
-                      count: count,
-                      userId: Clerk.user.id,
-                      userEmail: Clerk.user.emailAddresses && 
-                                Clerk.user.emailAddresses.length > 0 ? 
-                                Clerk.user.emailAddresses[0].emailAddress : null
-                    }
-                  });
-                } catch (e) {
-                  console.error("Error sending payment prompt event:", e);
-                  // Restore original function in case of error
-                  window.botpress.sendEvent = originalSendEvent;
-                }
-              }, 250);
-              
-              return result;
+              // Simply open the bot without sending any events
+              // The payment prompt will be handled by the listingCountUpdate event handler instead
+              return originalBotpressOpen();
             }
             // Otherwise, call the original open function.
             return originalBotpressOpen();
@@ -657,10 +620,7 @@
                               
                               // Check if we need to trigger checkout flow
                               if (count >= 5 && !updatedUser.publicMetadata.paid) {
-                                console.log('Count exceeds limit, but not sending duplicate payment prompt');
-                                // We don't need to send another payment prompt here
-                                // The window.botpress.open override will handle this when the bot reopens
-                                // Removing the duplicate event sending code:
+                                console.log('Count exceeds limit, sending prompt');
                                 
                                 try {
                                   window.botpress.sendEvent({ 
@@ -677,7 +637,8 @@
                                 } catch (e) {
                                   console.error("Error sending payment prompt event:", e);
                                 }
-                                
+                              } else {
+                                console.log('No need to send payment prompt: count =', count, 'paid =', updatedUser.publicMetadata.paid);
                               }
                             })
                             .catch(error => {
