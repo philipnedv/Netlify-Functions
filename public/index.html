@@ -500,11 +500,28 @@
             if (count >= 5 && !paid) {
               console.log("Usage limit exceeded. Showing payment prompt in bot...");
               
-              // Instead of closing the bot and redirecting, we'll send an event to the bot
-              // to trigger a specific conversation flow explaining the payment requirement
+              // Store the original function temporarily
+              const originalSendEvent = window.botpress.sendEvent;
+              
+              // Create a one-time event sender that will restore itself after use
+              window.botpress.sendEvent = function(event) {
+                // If this is our payment prompt event, restore the original function immediately after sending
+                if (event.type === 'show-payment-prompt') {
+                  console.log("Sending payment prompt event (one-time override)");
+                  // Restore original function immediately
+                  window.botpress.sendEvent = originalSendEvent;
+                }
+                // Call the original function with the event
+                return originalSendEvent.call(this, event);
+              };
+              
+              // Continue with the original open function to keep the bot open
+              const result = originalBotpressOpen();
+              
+              // Send the payment prompt event after a short delay
               setTimeout(() => {
                 try {
-                  // Send a custom event to the bot to trigger the payment explanation flow
+                  // This will use our modified sendEvent function which self-destructs after use
                   window.botpress.sendEvent({ 
                     type: 'show-payment-prompt',
                     payload: { 
@@ -515,14 +532,14 @@
                                 Clerk.user.emailAddresses[0].emailAddress : null
                     }
                   });
-                  console.log("Payment prompt event sent to bot");
                 } catch (e) {
                   console.error("Error sending payment prompt event:", e);
+                  // Restore original function in case of error
+                  window.botpress.sendEvent = originalSendEvent;
                 }
-              }, 250); // Small delay to ensure bot is ready
+              }, 250);
               
-              // Continue with the original open function to keep the bot open
-              return originalBotpressOpen();
+              return result;
             }
             // Otherwise, call the original open function.
             return originalBotpressOpen();
