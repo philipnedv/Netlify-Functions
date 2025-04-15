@@ -484,6 +484,27 @@
             subscriptionEndDate: null
           };
 
+          // Function to check if user needs to see payment prompt
+          function checkPaymentAccess() {
+            if (!Clerk.user) return true; // If no user, allow access (will be handled by auth)
+            
+            const publicMetadata = Clerk.user.publicMetadata || {};
+            const unsafeMetadata = Clerk.user.unsafeMetadata || {};
+            const count = unsafeMetadata.count ? Number(unsafeMetadata.count) : 0;
+            const paid = publicMetadata.paid === true;
+            const subscriptionEndDate = publicMetadata.subscriptionEndDate;
+            const currentTime = Math.floor(Date.now() / 1000);
+            
+            // Check if user has a valid subscription end date
+            if (subscriptionEndDate && currentTime < subscriptionEndDate) {
+              return true; // User has access
+            } else if (count >= 5 && !paid) {
+              return false; // User doesn't have access
+            } else {
+              return true; // User has access
+            }
+          }
+
           // Create a function to send the payment prompt event
           function sendPaymentPromptEvent() {
             try {
@@ -503,6 +524,20 @@
               console.error("Error sending payment prompt event:", e);
             }
           }
+
+          // Listen for new conversation events to check payment status
+          window.botpress.on('conversation', (conversationId) => {
+            console.log('New conversation started, id: ', conversationId);
+            
+            // Check if user has access
+            if (!checkPaymentAccess()) {
+              console.log("Usage limit exceeded. Showing payment prompt on new conversation.");
+              // Add a small delay to ensure the conversation is fully started
+              setTimeout(sendPaymentPromptEvent, 500);
+            } else {
+              console.log("User has access. No payment prompt needed for new conversation.");
+            }
+          });
 
           // Override the botpress open function to enforce our access logic.
           const originalBotpressOpen = window.botpress.open;
@@ -531,12 +566,7 @@
             const subscriptionEndDate = publicMetadata.subscriptionEndDate;
             const currentTime = Math.floor(Date.now() / 1000);
             
-            // Initialize the previous metadata values
-            previousMetadata = {
-              count: count,
-              paid: paid,
-              subscriptionEndDate: subscriptionEndDate
-            };
+            // Don't initialize previousMetadata here - we want page reloads to trigger the prompt
             
             console.log("Initial check - count:", count, "paid:", paid, "subscriptionEndDate:", subscriptionEndDate);
             
