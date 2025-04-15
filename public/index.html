@@ -550,12 +550,23 @@
             const subscriptionEndDate = publicMetadata.subscriptionEndDate;
             const currentTime = Math.floor(Date.now() / 1000);
             
-            // Initialize previousMetadata with actual values to prevent false "new subscription" detection
-            previousMetadata = {
-              count: count,
-              paid: paid,
-              subscriptionEndDate: subscriptionEndDate
-            };
+            console.log("Opening bot - count:", count, "paid:", paid, "subscriptionEndDate:", subscriptionEndDate);
+            
+            // Simply open the bot and return the result
+            const result = originalBotpressOpen();
+            return result;
+          };
+
+          // On page load, check the user's metadata and open/close the bot accordingly.
+          if (Clerk.user) {
+            const publicMetadata = Clerk.user.publicMetadata || {};
+            const unsafeMetadata = Clerk.user.unsafeMetadata || {};
+            const count = unsafeMetadata.count ? Number(unsafeMetadata.count) : 0;
+            const paid = publicMetadata.paid === true;
+            const subscriptionEndDate = publicMetadata.subscriptionEndDate;
+            const currentTime = Math.floor(Date.now() / 1000);
+            
+            // Don't initialize previousMetadata here - we want page reloads to trigger the prompt
             
             console.log("Initial check - count:", count, "paid:", paid, "subscriptionEndDate:", subscriptionEndDate);
             
