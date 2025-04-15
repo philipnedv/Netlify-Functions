@@ -253,7 +253,18 @@
           try {
             await Clerk.load();
             console.log("ClerkJS is loaded");
-            
+            const publicMetadata = Clerk.user.publicMetadata || {};
+            const unsafeMetadata = Clerk.user.unsafeMetadata || {};
+            const count = unsafeMetadata.count ? Number(unsafeMetadata.count) : 0;
+            const paid = publicMetadata.paid === true;
+            const subscriptionEndDate = publicMetadata.subscriptionEndDate;
+
+            // Initialize previousMetadata now that the user data is ready.
+            previousMetadata = {
+              count: count,
+              paid: paid,
+              subscriptionEndDate: subscriptionEndDate
+            };
             // Hide loading spinner after Clerk loads
             loadingSpinner.classList.add('hidden');
             
@@ -476,13 +487,6 @@
             "clientId": "e14fa388-d38e-45ee-bc41-d9bddbda5de4"
           });
           console.log("Botpress initialization completed.");
-
-          // Track the last metadata values to detect actual changes
-          let previousMetadata = {
-            count: count,
-            paid: paid,
-            subscriptionEndDate: subscriptionEndDate
-          };
 
           // Function to check if user needs to see payment prompt
           function checkPaymentAccess() {
