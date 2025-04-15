@@ -537,7 +537,7 @@
             if (!checkPaymentAccess()) {
               console.log("Usage limit exceeded. Showing payment prompt on new conversation.");
               // Add a small delay to ensure the conversation is fully started
-              setTimeout(sendPaymentPromptEvent, 500);
+              setTimeout(sendPaymentPromptEvent, 100);
             } else {
               console.log("User has access. No payment prompt needed for new conversation.");
             }
@@ -613,13 +613,6 @@
                   count, paid, subscriptionEndDate
                 });
                 
-                // Update our stored values
-                previousMetadata = {
-                  count: count,
-                  paid: paid,
-                  subscriptionEndDate: subscriptionEndDate
-                };
-                
                 // Always open the bot first
                 window.botpress.open();
                 
@@ -645,6 +638,12 @@
                     }
                   });
                 }
+                // Update our stored values
+                previousMetadata = {
+                  count: count,
+                  paid: paid,
+                  subscriptionEndDate: subscriptionEndDate
+                };
                 
                 // Check if user has a valid subscription end date
                 if (subscriptionEndDate && currentTime < subscriptionEndDate) {
