@@ -477,6 +477,33 @@
           });
           console.log("Botpress initialization completed.");
 
+          // Track the last metadata values to detect actual changes
+          let previousMetadata = {
+            count: null,
+            paid: null,
+            subscriptionEndDate: null
+          };
+
+          // Create a function to send the payment prompt event
+          function sendPaymentPromptEvent() {
+            try {
+              console.log('Sending payment prompt event');
+              window.botpress.sendEvent({ 
+                type: 'show-payment-prompt',
+                payload: { 
+                  count: Clerk.user?.unsafeMetadata?.count || 0,
+                  userId: Clerk.user?.id,
+                  userEmail: Clerk.user?.emailAddresses && 
+                            Clerk.user.emailAddresses.length > 0 ? 
+                            Clerk.user.emailAddresses[0].emailAddress : null
+                }
+              });
+              console.log("Payment prompt event sent to bot");
+            } catch (e) {
+              console.error("Error sending payment prompt event:", e);
+            }
+          }
+
           // Override the botpress open function to enforce our access logic.
           const originalBotpressOpen = window.botpress.open;
           window.botpress.open = function () {
@@ -488,24 +515,11 @@
             const subscriptionEndDate = publicMetadata.subscriptionEndDate;
             const currentTime = Math.floor(Date.now() / 1000);
             
-            console.log("Checking access - count:", count, "paid:", paid, "subscriptionEndDate:", subscriptionEndDate);
+            console.log("Opening bot - count:", count, "paid:", paid, "subscriptionEndDate:", subscriptionEndDate);
             
-            // Check if user has a subscription end date and if it's still valid
-            if (subscriptionEndDate && currentTime < subscriptionEndDate) {
-              console.log(`User has access until ${new Date(subscriptionEndDate * 1000).toISOString()}`);
-              return originalBotpressOpen();
-            }
-            
-            // If count is 5 or more and user isn't marked as paid, initiate checkout instead of opening the bot.
-            if (count >= 5 && !paid) {
-              console.log("Usage limit exceeded. Opening bot without payment prompt.");
-              
-              // Simply open the bot without sending any events
-              // The payment prompt will be handled by the listingCountUpdate event handler instead
-              return originalBotpressOpen();
-            }
-            // Otherwise, call the original open function.
-            return originalBotpressOpen();
+            // Simply open the bot and return the result
+            const result = originalBotpressOpen();
+            return result;
           };
 
           // On page load, check the user's metadata and open/close the bot accordingly.
@@ -517,20 +531,28 @@
             const subscriptionEndDate = publicMetadata.subscriptionEndDate;
             const currentTime = Math.floor(Date.now() / 1000);
             
+            // Initialize the previous metadata values
+            previousMetadata = {
+              count: count,
+              paid: paid,
+              subscriptionEndDate: subscriptionEndDate
+            };
+            
             console.log("Initial check - count:", count, "paid:", paid, "subscriptionEndDate:", subscriptionEndDate);
+            
+            // Always open the bot first
+            window.botpress.open();
             
             // Check if user has a valid subscription end date
             if (subscriptionEndDate && currentTime < subscriptionEndDate) {
               console.log(`User has access until ${new Date(subscriptionEndDate * 1000).toISOString()}`);
-              window.botpress.open();
-            } else if (count < 5) {
-              console.log("Count is less than 5 (or not set), opening bot.");
-              window.botpress.open();
+              // User has access, no need to show payment prompt
+            } else if (count >= 5 && !paid) {
+              // User doesn't have access, show payment prompt
+              console.log("Usage limit exceeded. Showing payment prompt on initial load.");
+              sendPaymentPromptEvent();
             } else {
-              // Always open the bot, even for unpaid users with 5+ listings
-              // Our override of window.botpress.open will handle showing the payment prompt
-              console.log("Count is 5 or more, opening bot with appropriate flow.");
-              window.botpress.open();
+              console.log("User has access. No payment prompt needed.");
             }
           }
 
@@ -546,45 +568,40 @@
               const subscriptionEndDate = publicMetadata.subscriptionEndDate;
               const currentTime = Math.floor(Date.now() / 1000);
               
-              console.log("User updated - count:", count, "paid:", paid, "subscriptionEndDate:", subscriptionEndDate);
+              // Check if any relevant metadata has actually changed
+              const metadataChanged = 
+                count !== previousMetadata.count ||
+                paid !== previousMetadata.paid ||
+                subscriptionEndDate !== previousMetadata.subscriptionEndDate;
               
-              // Check if user has a valid subscription end date
-              if (subscriptionEndDate && currentTime < subscriptionEndDate) {
-                console.log(`User has access until ${new Date(subscriptionEndDate * 1000).toISOString()}`);
+              if (metadataChanged) {
+                console.log("Metadata changed - previous:", previousMetadata, "current:", {
+                  count, paid, subscriptionEndDate
+                });
+                
+                // Update our stored values
+                previousMetadata = {
+                  count: count,
+                  paid: paid,
+                  subscriptionEndDate: subscriptionEndDate
+                };
+                
+                // Always open the bot first
                 window.botpress.open();
-              } else if (count < 5) {
-                window.botpress.open();
-              } else {
-                // Always keep the bot open and show payment prompt if needed
-                if (paid) {
-                  console.log("Count is 5 or more and paid is true, opening bot.");
-                  //window.botpress.open();
+                
+                // Check if user has a valid subscription end date
+                if (subscriptionEndDate && currentTime < subscriptionEndDate) {
+                  console.log(`User has access until ${new Date(subscriptionEndDate * 1000).toISOString()}`);
+                  // User has access, no need to show payment prompt
+                } else if (count >= 5 && !paid) {
+                  // User doesn't have access, show payment prompt
+                  console.log("Usage limit exceeded. Showing payment prompt.");
+                  sendPaymentPromptEvent();
                 } else {
-                  console.log("Count is 5 or more and not paid, keeping bot open with payment prompt.");
-                  //window.botpress.open(); // Keep bot open
-                  
-                  // REMOVE THIS DUPLICATE EVENT - The event is already sent in the window.botpress.open override
-                  // We don't need to send it again here, which could cause multiple prompts
-                  /* 
-                  setTimeout(() => {
-                    try {
-                      window.botpress.sendEvent({ 
-                        type: 'show-payment-prompt',
-                        payload: { 
-                          count: count,
-                          userId: user.id,
-                          userEmail: user.emailAddresses && 
-                                    user.emailAddresses.length > 0 ? 
-                                    user.emailAddresses[0].emailAddress : null
-                        }
-                      });
-                      console.log("Payment prompt event sent to bot from user update listener");
-                    } catch (e) {
-                      console.error("Error sending payment prompt event:", e);
-                    }
-                  }, 1000);
-                  */
+                  console.log("User has access. No payment prompt needed.");
                 }
+              } else {
+                console.log("User updated but no relevant metadata changes detected");
               }
             } catch (error) {
               console.error("Error handling user update:", error);
@@ -617,29 +634,7 @@
                           Clerk.user.reload()
                             .then(() => {
                               console.log('User reloaded, current count:', Clerk.user.unsafeMetadata.count);
-                              
-                              // Check if we need to trigger checkout flow
-                              if (count >= 5 && !updatedUser.publicMetadata.paid) {
-                                console.log('Count exceeds limit, sending prompt');
-                                
-                                try {
-                                  window.botpress.sendEvent({ 
-                                    type: 'show-payment-prompt',
-                                    payload: { 
-                                      count: count,
-                                      userId: Clerk.user.id,
-                                      userEmail: Clerk.user.emailAddresses && 
-                                                Clerk.user.emailAddresses.length > 0 ? 
-                                                Clerk.user.emailAddresses[0].emailAddress : null
-                                    }
-                                  });
-                                  console.log("Payment prompt event sent to bot");
-                                } catch (e) {
-                                  console.error("Error sending payment prompt event:", e);
-                                }
-                              } else {
-                                console.log('No need to send payment prompt: count =', count, 'paid =', updatedUser.publicMetadata.paid);
-                              }
+                              // Payment prompt logic removed - now handled by Clerk metadata listener
                             })
                             .catch(error => {
                               console.error("Error reloading user:", error);
