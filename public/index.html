@@ -479,9 +479,9 @@
 
           // Track the last metadata values to detect actual changes
           let previousMetadata = {
-            count: null,
-            paid: null,
-            subscriptionEndDate: null
+            count: count,
+            paid: paid,
+            subscriptionEndDate: subscriptionEndDate
           };
 
           // Function to check if user needs to see payment prompt
