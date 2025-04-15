@@ -619,6 +619,29 @@
                 // Always open the bot first
                 window.botpress.open();
                 
+                // Check for new subscription activation (before any other checks)
+                const isNewSubscription = 
+                  (previousMetadata.paid === false && paid === true) || 
+                  (previousMetadata.subscriptionEndDate === null && subscriptionEndDate) ||
+                  (previousMetadata.subscriptionEndDate && 
+                   previousMetadata.subscriptionEndDate < currentTime && 
+                   subscriptionEndDate > currentTime);
+                   
+                if (isNewSubscription) {
+                  console.log("New subscription detected. Sending subscription-activated event.");
+                  
+                  // Send a subscription activated event to the bot
+                  window.botpress.sendEvent({
+                    type: 'subscription-activated',
+                    payload: {
+                      expirationDate: subscriptionEndDate ? 
+                        new Date(subscriptionEndDate * 1000).toLocaleDateString() : 'Unlimited',
+                      userEmail: user.emailAddresses && user.emailAddresses.length > 0 ? 
+                                user.emailAddresses[0].emailAddress : null
+                    }
+                  });
+                }
+                
                 // Check if user has a valid subscription end date
                 if (subscriptionEndDate && currentTime < subscriptionEndDate) {
                   console.log(`User has access until ${new Date(subscriptionEndDate * 1000).toISOString()}`);
