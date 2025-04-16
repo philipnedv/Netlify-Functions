@@ -524,6 +524,14 @@
                 }
               });
               console.log("Payment prompt event sent to bot");
+
+              // Save the state in localStorage to record that we've handled the event
+              localStorage.setItem("previousMetadata", JSON.stringify({
+                count: count,
+                paid: paid,
+                subscriptionEndDate: subscriptionEndDate
+              }));
+              
             } catch (e) {
               console.error("Error sending payment prompt event:", e);
             }
@@ -616,12 +624,29 @@
                 // Always open the bot first
                 window.botpress.open();
                 
+                // Get previous metadata from localStorage if available
+                let storedMetadata;
+                try {
+                  storedMetadata = JSON.parse(localStorage.getItem("previousMetadata")) || {};
+                } catch (e) {
+                  console.error("Error parsing stored metadata:", e);
+                  storedMetadata = {};
+                }
+                
+                // Use stored values if available, otherwise fall back to in-memory values
+                const effectivePreviousMetadata = {
+                  count: storedMetadata.count !== undefined ? storedMetadata.count : previousMetadata.count,
+                  paid: storedMetadata.paid !== undefined ? storedMetadata.paid : previousMetadata.paid,
+                  subscriptionEndDate: storedMetadata.subscriptionEndDate !== undefined ? 
+                    storedMetadata.subscriptionEndDate : previousMetadata.subscriptionEndDate
+                };
+                
                 // Check for new subscription activation (before any other checks)
                 const isNewSubscription = 
-                  ((previousMetadata.paid === null || previousMetadata.paid === false) && paid === true) || 
-                  (previousMetadata.subscriptionEndDate === null && subscriptionEndDate) ||
-                  (previousMetadata.subscriptionEndDate && 
-                   previousMetadata.subscriptionEndDate < currentTime && 
+                  ((effectivePreviousMetadata.paid === null || effectivePreviousMetadata.paid === false) && paid === true) || 
+                  (effectivePreviousMetadata.subscriptionEndDate === null && subscriptionEndDate) ||
+                  (effectivePreviousMetadata.subscriptionEndDate && 
+                   effectivePreviousMetadata.subscriptionEndDate < currentTime && 
                    subscriptionEndDate > currentTime);
                    
                 if (isNewSubscription) {
@@ -637,6 +662,9 @@
                                 user.emailAddresses[0].emailAddress : null
                     }
                   });
+                  
+                  // Clear the localStorage after we've used it
+                  localStorage.removeItem("previousMetadata");
                 }
                 // Update our stored values
                 previousMetadata = {
@@ -644,7 +672,7 @@
                   paid: paid,
                   subscriptionEndDate: subscriptionEndDate
                 };
-                
+
                 // Check if user has a valid subscription end date
                 if (subscriptionEndDate && currentTime < subscriptionEndDate) {
                   console.log(`User has access until ${new Date(subscriptionEndDate * 1000).toISOString()}`);
