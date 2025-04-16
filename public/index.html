@@ -513,10 +513,18 @@
           function sendPaymentPromptEvent() {
             try {
               console.log('Sending payment prompt event');
+              
+              // Get the current values from Clerk user
+              const publicMetadata = Clerk.user?.publicMetadata || {};
+              const unsafeMetadata = Clerk.user?.unsafeMetadata || {};
+              const count = unsafeMetadata.count ? Number(unsafeMetadata.count) : 0;
+              const paid = publicMetadata.paid === true;
+              const subscriptionEndDate = publicMetadata.subscriptionEndDate;
+              
               window.botpress.sendEvent({ 
                 type: 'show-payment-prompt',
                 payload: { 
-                  count: Clerk.user?.unsafeMetadata?.count || 0,
+                  count: count,
                   userId: Clerk.user?.id,
                   userEmail: Clerk.user?.emailAddresses && 
                             Clerk.user.emailAddresses.length > 0 ? 
@@ -524,7 +532,7 @@
                 }
               });
               console.log("Payment prompt event sent to bot");
-
+              
               // Save the state in localStorage to record that we've handled the event
               localStorage.setItem("previousMetadata", JSON.stringify({
                 count: count,
