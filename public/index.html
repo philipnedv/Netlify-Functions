@@ -488,6 +488,29 @@
           });
           console.log("Botpress initialization completed.");
 
+          // Manual trigger for subscription event (for testing)
+          setTimeout(() => {
+            // Check if we have stored metadata indicating a pending subscription activation
+            try {
+              const storedMetadata = JSON.parse(localStorage.getItem("previousMetadata"));
+              if (storedMetadata && storedMetadata.paid === false && Clerk.user?.publicMetadata?.paid === true) {
+                console.log("Manually triggering subscription-activated event based on localStorage");
+                window.botpress.sendEvent({
+                  type: 'subscription-activated',
+                  payload: {
+                    expirationDate: 'Unlimited',
+                    userEmail: Clerk.user.emailAddresses && Clerk.user.emailAddresses.length > 0 ? 
+                              Clerk.user.emailAddresses[0].emailAddress : null
+                  }
+                });
+                localStorage.removeItem("previousMetadata");
+                console.log("Cleared localStorage after manual subscription activation");
+              }
+            } catch (e) {
+              console.error("Error in manual subscription check:", e);
+            }
+          }, 3000);
+
           // Function to check if user needs to see payment prompt
           function checkPaymentAccess() {
             if (!Clerk.user) return true; // If no user, allow access (will be handled by auth)
@@ -558,24 +581,6 @@
               console.log("User has access. No payment prompt needed for new conversation.");
             }
           });
-
-          // Override the botpress open function to enforce our access logic.
-          const originalBotpressOpen = window.botpress.open;
-          window.botpress.open = function () {
-            // Retrieve the metadata from Clerk - check both public and unsafe metadata
-            const publicMetadata = Clerk.user?.publicMetadata || {};
-            const unsafeMetadata = Clerk.user?.unsafeMetadata || {};
-            const count = unsafeMetadata.count ? Number(unsafeMetadata.count) : 0;
-            const paid = publicMetadata.paid === true;
-            const subscriptionEndDate = publicMetadata.subscriptionEndDate;
-            const currentTime = Math.floor(Date.now() / 1000);
-            
-            console.log("Opening bot - count:", count, "paid:", paid, "subscriptionEndDate:", subscriptionEndDate);
-            
-            // Simply open the bot and return the result
-            const result = originalBotpressOpen();
-            return result;
-          };
 
           // On page load, check the user's metadata and open/close the bot accordingly.
           if (Clerk.user) {
