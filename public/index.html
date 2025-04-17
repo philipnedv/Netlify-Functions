@@ -498,7 +498,6 @@
                 window.botpress.sendEvent({
                   type: 'subscription-activated',
                   payload: {
-                    expirationDate: 'Unlimited',
                     userEmail: Clerk.user.emailAddresses && Clerk.user.emailAddresses.length > 0 ? 
                               Clerk.user.emailAddresses[0].emailAddress : null
                   }
